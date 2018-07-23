@@ -2,6 +2,7 @@ include "Types.i.dfy"
 
 module Protocol_Node_i {
 import opened Types_i
+import opened Native__Io_s
 
 type Config = seq<EndPoint>
 
