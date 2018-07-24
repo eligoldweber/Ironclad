@@ -38,18 +38,29 @@ lemma ForNext(gls:GLS_State, gls':GLS_State, s:ServiceState, s':ServiceState, co
     requires s == AbstractifyGLS_State(gls);
     requires s' == AbstractifyGLS_State(gls');
     requires GLS_Next(gls, gls');
-    requires gls.ls.environment.nextStep.LEnvStepHostIos?
-    requires gls.ls.environment.nextStep.actor in gls.ls.servers;
-    requires NodeGrant(gls.ls.servers[gls.ls.environment.nextStep.actor], gls'.ls.servers[gls.ls.environment.nextStep.actor], gls.ls.environment.nextStep.ios)
-    requires gls.ls.servers[gls.ls.environment.nextStep.actor].held && gls.ls.servers[gls.ls.environment.nextStep.actor].epoch < 0xFFFF_FFFF_FFFF_FFFF
     requires forall e :: e in config <==> e in gls.ls.servers;
-    ensures  Service_Next(s, s');
+    requires forall e :: e in gls.ls.servers ==> gls.ls.servers[e].config == config;
+    ensures  Service_Next(s, s') || s == s';
+    ensures  forall e :: e in config <==> e in gls'.ls.servers;
+    ensures  forall e :: e in gls'.ls.servers ==> gls'.ls.servers[e].config == config;
 {
-    assert gls.ls.servers == gls'.ls.servers || (gls'.ls.servers == gls.ls.servers[gls.ls.environment.nextStep.actor := gls'.ls.servers[gls.ls.environment.nextStep.actor]]);
-    assert s'.hosts == s.hosts;
-    assert gls'.history == gls.history + [gls.ls.servers[gls.ls.environment.nextStep.actor].config[(gls.ls.servers[gls.ls.environment.nextStep.actor].my_index + 1) % |gls.ls.servers[gls.ls.environment.nextStep.actor].config|]];
-    assert mapdomain(gls.ls.servers) == s.hosts;
-    assert gls.ls.servers[gls.ls.environment.nextStep.actor].config[(gls.ls.servers[gls.ls.environment.nextStep.actor].my_index + 1) % |gls.ls.servers[gls.ls.environment.nextStep.actor].config|] in config;
+    assert mapdomain(gls'.ls.servers) == mapdomain(gls.ls.servers);
+    //assert forall e :: e in gls'.ls.servers ==> gls'.ls.servers[e].config == gls.ls.servers[e].config;
+
+    if   gls.ls.environment.nextStep.LEnvStepHostIos? && gls.ls.environment.nextStep.actor in gls.ls.servers
+          && NodeGrant(gls.ls.servers[gls.ls.environment.nextStep.actor], gls'.ls.servers[gls.ls.environment.nextStep.actor], gls.ls.environment.nextStep.ios)
+          && gls.ls.servers[gls.ls.environment.nextStep.actor].held && gls.ls.servers[gls.ls.environment.nextStep.actor].epoch < 0xFFFF_FFFF_FFFF_FFFF
+        {
+            assert gls.ls.servers == gls'.ls.servers || (gls'.ls.servers == gls.ls.servers[gls.ls.environment.nextStep.actor := gls'.ls.servers[gls.ls.environment.nextStep.actor]]);
+            assert s'.hosts == s.hosts;
+            assert gls'.history == gls.history + [gls.ls.servers[gls.ls.environment.nextStep.actor].config[(gls.ls.servers[gls.ls.environment.nextStep.actor].my_index + 1) % |gls.ls.servers[gls.ls.environment.nextStep.actor].config|]];
+            assert mapdomain(gls.ls.servers) == s.hosts;
+            assert gls.ls.servers[gls.ls.environment.nextStep.actor].config[(gls.ls.servers[gls.ls.environment.nextStep.actor].my_index + 1) % |gls.ls.servers[gls.ls.environment.nextStep.actor].config|] in config;
+        }
+    else
+    {
+        assert s == s';
+    }
 }
 
 lemma ForCorrospondence(gls:GLS_State, gls':GLS_State, s:ServiceState, s':ServiceState)
@@ -74,7 +85,7 @@ lemma ForCorrospondence(gls:GLS_State, gls':GLS_State, s:ServiceState, s':Servic
 lemma RefinementProof(config:Config, db:seq<GLS_State>) returns (sb:seq<ServiceState>)
     requires |db| > 0;
     requires GLS_Init(db[0], config);
-    requires forall i {:trigger GLS_Next(db[i], db[i+1])} :: 0 <= i < |db| - 1 ==> GLS_Next(db[i], db[i+1]);
+    requires forall i {:trigger GLS_Next(db[i-1], db[i])} :: 0 < i < |db| ==> GLS_Next(db[i-1], db[i]);
     ensures  |db| == |sb|;
     ensures  Service_Init(sb[0], Collections__Maps2_s.mapdomain(db[0].ls.servers));
     ensures  forall i {:trigger Service_Next(sb[i], sb[i+1])} :: 0 <= i < |sb| - 1 ==> sb[i] == sb[i+1] || Service_Next(sb[i], sb[i+1]);
@@ -82,29 +93,29 @@ lemma RefinementProof(config:Config, db:seq<GLS_State>) returns (sb:seq<ServiceS
 {
     sb:=[AbstractifyGLS_State(db[0])];
     ForInit(db[0], sb[0], config);
+    assert  forall e :: e in config <==> e in db[0].ls.servers;
 
     var i := 1;
     while (i < |db|)
+      invariant  |sb| == i;
+      invariant  0 < i <= |db|;
+      invariant  forall e :: e in config <==> e in db[i-1].ls.servers;
+      invariant  forall e :: e in db[i-1].ls.servers ==> db[i-1].ls.servers[e].config == config;
       invariant  Service_Init(sb[0], Collections__Maps2_s.mapdomain(db[0].ls.servers));
       invariant  forall i {:trigger Service_Next(sb[i], sb[i+1])} :: 0 <= i < |sb| - 1 ==> sb[i] == sb[i+1] || Service_Next(sb[i], sb[i+1]);
       invariant  forall i :: 0 <= i < |sb| ==> Service_Correspondence(db[i].ls.environment.sentPackets, sb[i]);
-      invariant  |sb| == i;
+      invariant  sb[i-1] == AbstractifyGLS_State(db[i-1]);
+      //invariant  GLS_Next(db[i-1], db[i]);
     {
         sb := sb + [AbstractifyGLS_State(db[i])];
         
-        if db[i-1].ls.environment.nextStep.LEnvStepHostIos? && db[i-1].ls.environment.nextStep.actor in config
-        {
-            ForNext(db[i-1], db[i], sb[i-1], sb[i], config);
-        }
-        else
-        {
-            assert sb[i-1] == sb[i];
-        }
+        ForNext(db[i-1], db[i], sb[i-1], sb[i], config);
+        
         ForCorrospondence(db[i-1], db[i], sb[i-1], sb[i]);
 
         i := i+1;
     }
-
+    assert i == |db|;
 }
 }
 
