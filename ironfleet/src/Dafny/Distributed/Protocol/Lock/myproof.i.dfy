@@ -12,15 +12,14 @@ import opened Refinement_i
 
 predicate Service_Correspondence(concretePkts:set<LPacket<EndPoint, LockMessage>>, serviceState:ServiceState) 
 {
-    forall p, epoch :: 
+    forall p :: 
         p in concretePkts 
      && p.src in serviceState.hosts 
      && p.dst in serviceState.hosts 
      && p.msg.Locked?
-     && p.msg.locked_epoch == epoch
      ==>
-        1 <= epoch <= |serviceState.history|
-     && p.src == serviceState.history[epoch-1]
+        1 <= p.msg.locked_epoch <= |serviceState.history|
+     && p.src == serviceState.history[p.msg.locked_epoch-1]
 }
 
 lemma ForInit(gls:GLS_State, s:ServiceState, config:Config)
@@ -90,11 +89,30 @@ lemma ForCorrospondence(gls:GLS_State, gls':GLS_State, s:ServiceState, s':Servic
         assert s'.history == s.history;
         if gls.ls.environment.nextStep.LEnvStepHostIos? && gls.ls.environment.nextStep.actor in gls.ls.servers
         {
-            assert LS_NextOneServer(gls.ls, gls'.ls, gls.ls.environment.nextStep.actor, gls.ls.environment.nextStep.ios);
+            assert NodeNext(gls.ls.servers[gls.ls.environment.nextStep.actor], gls'.ls.servers[gls.ls.environment.nextStep.actor], gls.ls.environment.nextStep.ios);
+            if NodeAccept(gls.ls.servers[gls.ls.environment.nextStep.actor], gls'.ls.servers[gls.ls.environment.nextStep.actor], gls.ls.environment.nextStep.ios)
+            {
+                ghost var ios := gls.ls.environment.nextStep.ios;
+                ghost var actor := gls.ls.environment.nextStep.actor;
+                if |ios| == 2
+                {
+                    assert gls'.ls.servers[actor].epoch == ios[0].r.msg.transfer_epoch;
+                    //assert exists
+                    //assert gls'.ls.servers[gls.ls.environment.nextStep.actor].epoch == |s'.history|;
+                }
+                else
+                {
+                    assert forall e :: e in gls'.ls.environment.sentPackets - gls.ls.environment.sentPackets ==> !(e.msg.Locked?);
+                }
+            }
+            else
+            {
+                assert forall e :: e in gls'.ls.environment.sentPackets - gls.ls.environment.sentPackets ==> !(e.msg.Locked?);
+            }
         }   
         else
         {
-            assert forall e :: e in gls'.ls.environment.sentPackets - gls.ls.environment.sentPackets ==> !(e.src in gls.ls.servers);
+            assert forall e :: e in gls'.ls.environment.sentPackets - gls.ls.environment.sentPackets ==> !(e.src in s'.hosts);
         }   
     }
 }
