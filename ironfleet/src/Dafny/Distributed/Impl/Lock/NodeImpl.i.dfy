@@ -10,8 +10,25 @@ class NodeImpl
     var node:CNode;
     var udpClient:UdpClient;
     var localAddr:EndPoint;
+    var ok:bool;
 
     ghost var Repr : set<object>;
+/*
+    constructor(config:Config, my_index:uint64, ghost env_:HostEnvironment)
+        requires env_!=null && env_.Valid() && env_.ok.ok();
+        requires ValidConfig(config) && ValidConfigIndex(config, my_index);
+        modifies env_.ok;
+        ensures ok ==>
+               Valid()
+            && Env() == env_
+            && NodeInit(AbstractifyCNode(node), int(my_index), config)
+            && node.config == config 
+            && node.my_index == my_index;
+    {
+        new;
+        ok := InitNode(config, my_index, env_);
+
+    }*/
 
     predicate Valid()
         reads this;

@@ -34,16 +34,22 @@ lemma ForInit(gls:GLS_State, s:ServiceState, config:Config)
     assert |gls.ls.environment.sentPackets| == 0;
 }
 
-lemma ForNext(gls:GLS_State, gls':GLS_State, s:ServiceState, s':ServiceState, id:EndPoint)
+lemma ForNext(gls:GLS_State, gls':GLS_State, s:ServiceState, s':ServiceState, config: Config)
     requires s == AbstractifyGLS_State(gls);
     requires s' == AbstractifyGLS_State(gls');
-    requires id in gls.ls.servers;
     requires GLS_Next(gls, gls');
+    requires gls.ls.environment.nextStep.LEnvStepHostIos?
+    requires gls.ls.environment.nextStep.actor in gls.ls.servers;
+    requires NodeGrant(gls.ls.servers[gls.ls.environment.nextStep.actor], gls'.ls.servers[gls.ls.environment.nextStep.actor], gls.ls.environment.nextStep.ios)
+    requires gls.ls.servers[gls.ls.environment.nextStep.actor].held && gls.ls.servers[gls.ls.environment.nextStep.actor].epoch < 0xFFFF_FFFF_FFFF_FFFF
+    requires forall e :: e in config <==> e in gls.ls.servers;
     ensures  Service_Next(s, s');
 {
     assert gls.ls.servers == gls'.ls.servers || (gls'.ls.servers == gls.ls.servers[gls.ls.environment.nextStep.actor := gls'.ls.servers[gls.ls.environment.nextStep.actor]]);
     assert s'.hosts == s.hosts;
-    assert s'.history == s.history + [gls.ls.servers[gls.ls.environment.nextStep.actor].config[(gls.ls.servers[gls.ls.environment.nextStep.actor].my_index + 1) % |gls.ls.servers[gls.ls.environment.nextStep.actor].config|]];
+    assert gls'.history == gls.history + [gls.ls.servers[gls.ls.environment.nextStep.actor].config[(gls.ls.servers[gls.ls.environment.nextStep.actor].my_index + 1) % |gls.ls.servers[gls.ls.environment.nextStep.actor].config|]];
+    assert mapdomain(gls.ls.servers) == s.hosts;
+    assert gls.ls.servers[gls.ls.environment.nextStep.actor].config[(gls.ls.servers[gls.ls.environment.nextStep.actor].my_index + 1) % |gls.ls.servers[gls.ls.environment.nextStep.actor].config|] in config;
 }
 
 lemma ForCorrospondence(gls:GLS_State, gls':GLS_State, s:ServiceState, s':ServiceState)
@@ -88,7 +94,7 @@ lemma RefinementProof(config:Config, db:seq<GLS_State>) returns (sb:seq<ServiceS
         
         if db[i-1].ls.environment.nextStep.LEnvStepHostIos? && db[i-1].ls.environment.nextStep.actor in config
         {
-            ForNext(db[i-1], db[i], sb[i-1], sb[i], db[i-1].ls.environment.nextStep.actor);
+            ForNext(db[i-1], db[i], sb[i-1], sb[i], config);
         }
         else
         {
