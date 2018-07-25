@@ -30,7 +30,7 @@ predicate myService_Correspondence(concretePkts:set<LPacket<EndPoint, LockMessag
      && p.dst in serviceState.hosts 
      && p.msg.Transfer?
      ==>
-        1 <= p.msg.locked_epoch <= |serviceState.history|
+        1 <= p.msg.transfer_epoch <= |serviceState.history|
      && p.dst == serviceState.history[p.msg.transfer_epoch-1]
 }
 
@@ -40,6 +40,7 @@ lemma ForInit(gls:GLS_State, s:ServiceState, config:Config)
     ensures Service_Init(s, Collections__Maps2_s.mapdomain(gls.ls.servers));
     ensures Service_Correspondence(gls.ls.environment.sentPackets, s);
     ensures forall e :: e in gls.ls.servers && gls.ls.servers[e].held ==> gls.ls.servers[e].epoch == |s.history|;
+    ensures myService_Correspondence(gls.ls.environment.sentPackets, s);
 {
     assert mapdomain(gls.ls.servers) == s.hosts;
     assert config[0] in s.hosts && s.history == [config[0]];
@@ -82,18 +83,71 @@ predicate lengthOfHistory(gls: GLS_State, s: ServiceState)
     true 
 }
 
-lemma ForCorrospondence(gls:seq<GLS_State>, s:seq<ServiceState>, i:int, config:Config)
+lemma FormyCorrespondence(gls:seq<GLS_State>, s:seq<ServiceState>, i:int, config:Config)
     requires i > 0;
     requires |gls| == |s| == i + 1;
     requires forall i:int :: 0 <= i < |gls| ==> s[i] == AbstractifyGLS_State(gls[i]);
     requires forall i:int :: 0 <= i < |gls| - 1 ==> Service_Correspondence(gls[i].ls.environment.sentPackets, s[i]);
+    requires forall i:int :: 0 <= i < |gls| - 1 ==> myService_Correspondence(gls[i].ls.environment.sentPackets, s[i]);
     requires forall i:int :: 0 < i < |gls| ==> GLS_Next(gls[i-1], gls[i]);
     requires forall i:int :: 0 < i < |s| ==> s[i-1] == s[i] || Service_Next(s[i-1], s[i]);
     requires forall e :: e in gls[i-1].ls.servers && gls[i-1].ls.servers[e].held ==> gls[i-1].ls.servers[e].epoch == |s[i-1].history|;
     requires forall e1, e2 :: e1 in gls[i-1].ls.servers && e2 in gls[i-1].ls.servers && gls[i-1].ls.servers[e1].held && gls[i-1].ls.servers[e2].held ==> e1 == e2;
     requires forall j, e :: 0 <= j < |gls| ==> (e in config <==> e in gls[j].ls.servers);
-    ensures  Service_Correspondence(gls[i].ls.environment.sentPackets, s[i]);
     ensures  forall e :: e in gls[i].ls.servers && gls[i].ls.servers[e].held ==> gls[i].ls.servers[e].epoch == |s[i].history|;
+    ensures  myService_Correspondence(gls[i].ls.environment.sentPackets, s[i]);
+    
+{
+    if   gls[i-1].ls.environment.nextStep.LEnvStepHostIos? && gls[i-1].ls.environment.nextStep.actor in gls[i-1].ls.servers
+      && NodeGrant(gls[i-1].ls.servers[gls[i-1].ls.environment.nextStep.actor], gls[i].ls.servers[gls[i-1].ls.environment.nextStep.actor], gls[i-1].ls.environment.nextStep.ios)
+      && gls[i-1].ls.servers[gls[i-1].ls.environment.nextStep.actor].held && gls[i-1].ls.servers[gls[i-1].ls.environment.nextStep.actor].epoch < 0xFFFF_FFFF_FFFF_FFFF
+    {
+        ghost var pkg := gls[i-1].ls.environment.nextStep.ios[0].s;
+        assert s[i].history == s[i-1].history + [gls[i-1].ls.servers[gls[i-1].ls.environment.nextStep.actor].config[(gls[i-1].ls.servers[gls[i-1].ls.environment.nextStep.actor].my_index + 1) % |gls[i-1].ls.servers[gls[i-1].ls.environment.nextStep.actor].config|]]
+            && gls[i-1].ls.environment.nextStep.ios[0].LIoOpSend?
+            && gls[i].ls.environment.sentPackets == gls[i-1].ls.environment.sentPackets + {gls[i-1].ls.environment.nextStep.ios[0].s}
+            && pkg.msg.transfer_epoch == |s[i].history|
+            && s[i].history[pkg.msg.transfer_epoch-1] == pkg.dst
+            && gls[i-1].ls.environment.nextStep.actor == pkg.src;
+        //assert |ios| == 1;
+        assert |gls[i].ls.environment.sentPackets - gls[i-1].ls.environment.sentPackets| == 1;
+    }
+    else
+    {
+        assert s[i].history == s[i-1].history;
+        if gls[i-1].ls.environment.nextStep.LEnvStepHostIos? && gls[i-1].ls.environment.nextStep.actor in gls[i-1].ls.servers
+        {
+            if NodeAccept(gls[i-1].ls.servers[gls[i-1].ls.environment.nextStep.actor], gls[i].ls.servers[gls[i-1].ls.environment.nextStep.actor], gls[i-1].ls.environment.nextStep.ios)
+            {
+                assert forall e:: (e in gls[i-1].ls.environment.nextStep.ios && e.LIoOpSend?) ==> !e.s.msg.Transfer?;
+                if (gls[i].ls.servers[gls[i-1].ls.environment.nextStep.actor].held)
+                {
+
+                }
+            }
+            else
+            {
+                assert forall e :: e in gls[i].ls.environment.sentPackets - gls[i-1].ls.environment.sentPackets ==> !(e.msg.Locked?);
+            }
+        }
+        else
+        {
+            assert forall e :: e in gls[i].ls.environment.sentPackets - gls[i-1].ls.environment.sentPackets ==> !(e.src in s[i].hosts);
+        }   
+    }
+}
+
+lemma ForCorrospondence(gls:seq<GLS_State>, s:seq<ServiceState>, i:int, config:Config)
+    requires i > 0;
+    requires |gls| == |s| == i + 1;
+    requires forall i:int :: 0 <= i < |gls| ==> s[i] == AbstractifyGLS_State(gls[i]);
+    requires forall i:int :: 0 <= i < |gls| - 1 ==> Service_Correspondence(gls[i].ls.environment.sentPackets, s[i]);
+    requires forall i:int :: 0 <= i < |gls| ==> myService_Correspondence(gls[i].ls.environment.sentPackets, s[i]);
+    requires forall i:int :: 0 < i < |gls| ==> GLS_Next(gls[i-1], gls[i]);
+    requires forall i:int :: 0 < i < |s| ==> s[i-1] == s[i] || Service_Next(s[i-1], s[i]);
+    requires forall e1, e2 :: e1 in gls[i-1].ls.servers && e2 in gls[i-1].ls.servers && gls[i-1].ls.servers[e1].held && gls[i-1].ls.servers[e2].held ==> e1 == e2;
+    requires forall j, e :: 0 <= j < |gls| ==> (e in config <==> e in gls[j].ls.servers);
+    ensures  Service_Correspondence(gls[i].ls.environment.sentPackets, s[i]);
 {
     if   gls[i-1].ls.environment.nextStep.LEnvStepHostIos? && gls[i-1].ls.environment.nextStep.actor in gls[i-1].ls.servers
       && NodeGrant(gls[i-1].ls.servers[gls[i-1].ls.environment.nextStep.actor], gls[i].ls.servers[gls[i-1].ls.environment.nextStep.actor], gls[i-1].ls.environment.nextStep.ios)
@@ -180,7 +234,7 @@ lemma RefinementProof(config:Config, db:seq<GLS_State>) returns (sb:seq<ServiceS
 
         assert forall j :: 0 < j <= i ==> sb[i-1] == sb[i] || Service_Next(sb[i-1], sb[i]);
         assert sb[.. i+1] == sb;
-
+        FormyCorrespondence(db[.. i+1], sb[.. i+1], i, config);
         ForCorrospondence(db[.. i+1], sb[.. i+1], i, config);
 
         i := i+1;
