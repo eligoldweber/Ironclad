@@ -22,6 +22,18 @@ predicate Service_Correspondence(concretePkts:set<LPacket<EndPoint, LockMessage>
      && p.src == serviceState.history[p.msg.locked_epoch-1]
 }
 
+predicate myService_Correspondence(concretePkts:set<LPacket<EndPoint, LockMessage>>, serviceState:ServiceState) 
+{
+    forall p :: 
+        p in concretePkts 
+     && p.src in serviceState.hosts 
+     && p.dst in serviceState.hosts 
+     && p.msg.Transfer?
+     ==>
+        1 <= p.msg.locked_epoch <= |serviceState.history|
+     && p.dst == serviceState.history[p.msg.transfer_epoch-1]
+}
+
 lemma ForInit(gls:GLS_State, s:ServiceState, config:Config)
     requires s == AbstractifyGLS_State(gls);
     requires GLS_Init(gls, config);
@@ -40,9 +52,11 @@ lemma ForNext(gls:GLS_State, gls':GLS_State, s:ServiceState, s':ServiceState, co
     requires GLS_Next(gls, gls');
     requires forall e :: e in config <==> e in gls.ls.servers;
     requires forall e :: e in gls.ls.servers ==> gls.ls.servers[e].config == config;
+    //requires forall e1, e2 :: e1 in gls.ls.servers && e2 in gls.ls.servers && gls.ls.servers[e1].held && gls.ls.servers[e2].held ==> e1 == e2;
     ensures  Service_Next(s, s') || s == s';
     ensures  forall e :: e in config <==> e in gls'.ls.servers;
     ensures  forall e :: e in gls'.ls.servers ==> gls'.ls.servers[e].config == config;
+    //ensures  forall e1, e2 :: e1 in gls'.ls.servers && e2 in gls'.ls.servers && gls'.ls.servers[e1].held && gls'.ls.servers[e2].held ==> e1 == e2;
 {
     assert mapdomain(gls'.ls.servers) == mapdomain(gls.ls.servers);
     //assert forall e :: e in gls'.ls.servers ==> gls'.ls.servers[e].config == gls.ls.servers[e].config;
@@ -63,56 +77,74 @@ lemma ForNext(gls:GLS_State, gls':GLS_State, s:ServiceState, s':ServiceState, co
     }
 }
 
-lemma ForCorrospondence(gls:GLS_State, gls':GLS_State, s:ServiceState, s':ServiceState)
-    requires s == AbstractifyGLS_State(gls);
-    requires s' == AbstractifyGLS_State(gls');
-    requires Service_Correspondence(gls.ls.environment.sentPackets, s);
-    requires GLS_Next(gls, gls');
-    requires forall e :: e in gls.ls.servers && gls.ls.servers[e].held ==> gls.ls.servers[e].epoch == |s.history|;
-    ensures  Service_Correspondence(gls'.ls.environment.sentPackets, s');
-    ensures  forall e :: e in gls'.ls.servers && gls'.ls.servers[e].held ==> gls'.ls.servers[e].epoch == |s'.history|;
+predicate lengthOfHistory(gls: GLS_State, s: ServiceState)
 {
-    if   gls.ls.environment.nextStep.LEnvStepHostIos? && gls.ls.environment.nextStep.actor in gls.ls.servers
-      && NodeGrant(gls.ls.servers[gls.ls.environment.nextStep.actor], gls'.ls.servers[gls.ls.environment.nextStep.actor], gls.ls.environment.nextStep.ios)
-      && gls.ls.servers[gls.ls.environment.nextStep.actor].held && gls.ls.servers[gls.ls.environment.nextStep.actor].epoch < 0xFFFF_FFFF_FFFF_FFFF
+    true 
+}
+
+lemma ForCorrospondence(gls:seq<GLS_State>, s:seq<ServiceState>, i:int, config:Config)
+    requires i > 0;
+    requires |gls| == |s| == i + 1;
+    requires forall i:int :: 0 <= i < |gls| ==> s[i] == AbstractifyGLS_State(gls[i]);
+    requires forall i:int :: 0 <= i < |gls| - 1 ==> Service_Correspondence(gls[i].ls.environment.sentPackets, s[i]);
+    requires forall i:int :: 0 < i < |gls| ==> GLS_Next(gls[i-1], gls[i]);
+    requires forall i:int :: 0 < i < |s| ==> s[i-1] == s[i] || Service_Next(s[i-1], s[i]);
+    requires forall e :: e in gls[i-1].ls.servers && gls[i-1].ls.servers[e].held ==> gls[i-1].ls.servers[e].epoch == |s[i-1].history|;
+    requires forall e1, e2 :: e1 in gls[i-1].ls.servers && e2 in gls[i-1].ls.servers && gls[i-1].ls.servers[e1].held && gls[i-1].ls.servers[e2].held ==> e1 == e2;
+    requires forall j, e :: 0 <= j < |gls| ==> (e in config <==> e in gls[j].ls.servers);
+    ensures  Service_Correspondence(gls[i].ls.environment.sentPackets, s[i]);
+    ensures  forall e :: e in gls[i].ls.servers && gls[i].ls.servers[e].held ==> gls[i].ls.servers[e].epoch == |s[i].history|;
+{
+    if   gls[i-1].ls.environment.nextStep.LEnvStepHostIos? && gls[i-1].ls.environment.nextStep.actor in gls[i-1].ls.servers
+      && NodeGrant(gls[i-1].ls.servers[gls[i-1].ls.environment.nextStep.actor], gls[i].ls.servers[gls[i-1].ls.environment.nextStep.actor], gls[i-1].ls.environment.nextStep.ios)
+      && gls[i-1].ls.servers[gls[i-1].ls.environment.nextStep.actor].held && gls[i-1].ls.servers[gls[i-1].ls.environment.nextStep.actor].epoch < 0xFFFF_FFFF_FFFF_FFFF
     {
-        assert s'.history == s.history + [gls.ls.servers[gls.ls.environment.nextStep.actor].config[(gls.ls.servers[gls.ls.environment.nextStep.actor].my_index + 1) % |gls.ls.servers[gls.ls.environment.nextStep.actor].config|]]
-            && gls.ls.environment.nextStep.ios[0].LIoOpSend?
-            && gls'.ls.environment.sentPackets == gls.ls.environment.sentPackets + {gls.ls.environment.nextStep.ios[0].s}
-            && var pkg := gls.ls.environment.nextStep.ios[0].s;
-                   pkg.msg.transfer_epoch == |s'.history|
-                && s'.history[pkg.msg.transfer_epoch-1] == pkg.dst
-                && gls.ls.environment.nextStep.actor == pkg.src;
+        assert s[i].history == s[i-1].history + [gls[i-1].ls.servers[gls[i-1].ls.environment.nextStep.actor].config[(gls[i-1].ls.servers[gls[i-1].ls.environment.nextStep.actor].my_index + 1) % |gls[i-1].ls.servers[gls[i-1].ls.environment.nextStep.actor].config|]]
+            && gls[i-1].ls.environment.nextStep.ios[0].LIoOpSend?
+            && gls[i].ls.environment.sentPackets == gls[i-1].ls.environment.sentPackets + {gls[i-1].ls.environment.nextStep.ios[0].s}
+            && var pkg := gls[i-1].ls.environment.nextStep.ios[0].s;
+                   pkg.msg.transfer_epoch == |s[i].history|
+                && s[i].history[pkg.msg.transfer_epoch-1] == pkg.dst
+                && gls[i-1].ls.environment.nextStep.actor == pkg.src;
+        assert forall e :: e in gls[i].ls.servers ==> ! gls[i].ls.servers[e].held;
     }
     else
     {
-        assert s'.history == s.history;
-        if gls.ls.environment.nextStep.LEnvStepHostIos? && gls.ls.environment.nextStep.actor in gls.ls.servers
+        assert s[i].history == s[i-1].history;
+        if gls[i-1].ls.environment.nextStep.LEnvStepHostIos? && gls[i-1].ls.environment.nextStep.actor in gls[i-1].ls.servers
         {
-            assert NodeNext(gls.ls.servers[gls.ls.environment.nextStep.actor], gls'.ls.servers[gls.ls.environment.nextStep.actor], gls.ls.environment.nextStep.ios);
-            if NodeAccept(gls.ls.servers[gls.ls.environment.nextStep.actor], gls'.ls.servers[gls.ls.environment.nextStep.actor], gls.ls.environment.nextStep.ios)
+            assert NodeNext(gls[i-1].ls.servers[gls[i-1].ls.environment.nextStep.actor], gls[i].ls.servers[gls[i-1].ls.environment.nextStep.actor], gls[i-1].ls.environment.nextStep.ios);
+            if NodeAccept(gls[i-1].ls.servers[gls[i-1].ls.environment.nextStep.actor], gls[i].ls.servers[gls[i-1].ls.environment.nextStep.actor], gls[i-1].ls.environment.nextStep.ios)
             {
-                ghost var ios := gls.ls.environment.nextStep.ios;
-                ghost var actor := gls.ls.environment.nextStep.actor;
+                ghost var ios := gls[i-1].ls.environment.nextStep.ios;
+                ghost var actor := gls[i-1].ls.environment.nextStep.actor;
                 if |ios| == 2
                 {
-                    assert gls'.ls.servers[actor].epoch == ios[0].r.msg.transfer_epoch;
+                    assert gls[i].ls.servers[actor].epoch == ios[0].r.msg.transfer_epoch;
+                    assert ios[0].r in gls[i-1].ls.environment.sentPackets;
+                    assert exists j :: 0 <= j < i && gls[j].ls.environment.nextStep.LEnvStepHostIos?
+                                                    && ios[0].r in gls[j+1].ls.environment.sentPackets
+                                                    //&& gls[j].ls.environment.nextStep.actor in config
+                                                    //&& gls[j].ls.servers[gls[j].ls.environment.nextStep.actor].held
+                                                    //&& gls[j].ls.servers[gls[j].ls.environment.nextStep.actor].epoch < 0xFFFF_FFFF_FFFF_FFFF
+                                                    //&& NodeGrant(gls[j].ls.servers[gls[j].ls.environment.nextStep.actor], gls[j+1].ls.servers[gls[j].ls.environment.nextStep.actor], gls[j].ls.environment.nextStep.ios)
+                                                    && ios[0].r in (set x|x in gls[j].ls.environment.nextStep.ios && x.LIoOpSend? :: x.s);
                     //assert exists
-                    //assert gls'.ls.servers[gls.ls.environment.nextStep.actor].epoch == |s'.history|;
+                    //assert gls[i].ls.servers[gls[i-1].ls.environment.nextStep.actor].epoch == |s'.history|;
                 }
                 else
                 {
-                    assert forall e :: e in gls'.ls.environment.sentPackets - gls.ls.environment.sentPackets ==> !(e.msg.Locked?);
+                    assert forall e :: e in gls[i].ls.environment.sentPackets - gls[i-1].ls.environment.sentPackets ==> !(e.msg.Locked?);
                 }
             }
             else
             {
-                assert forall e :: e in gls'.ls.environment.sentPackets - gls.ls.environment.sentPackets ==> !(e.msg.Locked?);
+                assert forall e :: e in gls[i].ls.environment.sentPackets - gls[i-1].ls.environment.sentPackets ==> !(e.msg.Locked?);
             }
         }   
         else
         {
-            assert forall e :: e in gls'.ls.environment.sentPackets - gls.ls.environment.sentPackets ==> !(e.src in s'.hosts);
+            assert forall e :: e in gls[i].ls.environment.sentPackets - gls[i-1].ls.environment.sentPackets ==> !(e.src in s[i].hosts);
         }   
     }
 }
@@ -133,21 +165,23 @@ lemma RefinementProof(config:Config, db:seq<GLS_State>) returns (sb:seq<ServiceS
     var i := 1;
     while (i < |db|)
       invariant  |sb| == i;
-      invariant  0 < i <= |db|;
-      invariant  forall e :: e in config <==> e in db[i-1].ls.servers;
-      invariant  forall e :: e in db[i-1].ls.servers ==> db[i-1].ls.servers[e].config == config;
-      invariant  Service_Init(sb[0], Collections__Maps2_s.mapdomain(db[0].ls.servers));
-      invariant  forall i {:trigger Service_Next(sb[i], sb[i+1])} :: 0 <= i < |sb| - 1 ==> sb[i] == sb[i+1] || Service_Next(sb[i], sb[i+1]);
-      invariant  forall i :: 0 <= i < |sb| ==> Service_Correspondence(db[i].ls.environment.sentPackets, sb[i]);
-      invariant  sb[i-1] == AbstractifyGLS_State(db[i-1]);
-      invariant  forall e :: e in db[i-1].ls.servers && db[i-1].ls.servers[e].held ==> db[i-1].ls.servers[e].epoch == |sb[i-1].history|;
-      //invariant  GLS_Next(db[i-1], db[i]);
+     invariant  0 < i <= |db|;
+     invariant  forall j, e :: 0 <= j < i ==> (e in config <==> e in db[j].ls.servers);
+     invariant  forall e :: e in db[i-1].ls.servers ==> db[i-1].ls.servers[e].config == config;
+     invariant  Service_Init(sb[0], Collections__Maps2_s.mapdomain(db[0].ls.servers));
+     invariant  forall i :: 0 <= i < |sb| ==> Service_Correspondence(db[i].ls.environment.sentPackets, sb[i]);
+     invariant  forall i:int :: 0 < i < |sb| ==> sb[i-1] == sb[i] || Service_Next(sb[i-1], sb[i]);//
+     invariant  forall i:int :: 0 <= i < |sb| ==> sb[i] == AbstractifyGLS_State(db[i]);//
+     invariant  forall e :: e in db[i-1].ls.servers && db[i-1].ls.servers[e].held ==> db[i-1].ls.servers[e].epoch == |sb[i-1].history|;
     {
         sb := sb + [AbstractifyGLS_State(db[i])];
         
         ForNext(db[i-1], db[i], sb[i-1], sb[i], config);
-        
-        ForCorrospondence(db[i-1], db[i], sb[i-1], sb[i]);
+
+        assert forall j :: 0 < j <= i ==> sb[i-1] == sb[i] || Service_Next(sb[i-1], sb[i]);
+        assert sb[.. i+1] == sb;
+
+        ForCorrospondence(db[.. i+1], sb[.. i+1], i, config);
 
         i := i+1;
     }
