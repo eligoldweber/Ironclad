@@ -14,6 +14,7 @@ predicate NodeInit(s:Node, my_index:int, config:Config)
  && 0 <= my_index < |config|
  && s.held == (my_index == 0)
  && s.config == config
+ && s.my_index == my_index //Remzi's change
 }
 
 predicate NodeGrant(s:Node, s':Node, ios:seq<LockIo>)
@@ -24,6 +25,7 @@ predicate NodeGrant(s:Node, s':Node, ios:seq<LockIo>)
      && |s.config| > 0
      && s'.config == s.config
      && s'.epoch == s.epoch
+     && s.my_index == s'.my_index//Remzi's change
      && var outbound_packet := ios[0].s;
             outbound_packet.msg.Transfer? 
          && outbound_packet.msg.transfer_epoch == s.epoch + 1
@@ -40,13 +42,16 @@ predicate NodeAccept(s:Node, s':Node, ios:seq<LockIo>)
     else
         ios[0].LIoOpReceive?
      && if    !s.held 
+           && s.my_index == s'.my_index//Remzi's change
            && ios[0].r.src in s.config
            && ios[0].r.msg.Transfer? 
-           && ios[0].r.msg.transfer_epoch > s.epoch then
+           && ios[0].r.msg.transfer_epoch > s.epoch 
+           && ios[0].r.dst == s.config[s.my_index] then //Remzi's change
                    s'.held
                 && |ios| == 2
                 && ios[1].LIoOpSend?
                 && ios[1].s.msg.Locked?
+                && ios[1].s.src == s.config[s.my_index] //Remzi's change
                 && s'.epoch == ios[0].r.msg.transfer_epoch == ios[1].s.msg.locked_epoch
                 && s'.config == s.config
         else 
