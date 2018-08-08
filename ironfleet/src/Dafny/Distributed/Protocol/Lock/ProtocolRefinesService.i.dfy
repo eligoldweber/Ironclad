@@ -66,13 +66,17 @@ module Protocol_Refines_Service {
     requires forall n :: n in gls.ls.servers && gls.ls.servers[n].held ==> gls.history[|gls.history| - 1] == n;
     ensures forall n :: n in gls'.ls.servers && gls'.ls.servers[n].held ==> gls'.history[|gls'.history| - 1] == n;
 
+    requires forall h,j :: h in gls.ls.servers && 0 <= j < |gls.history|-1 && gls.history[j] == h ==> j+1 <= gls.ls.servers[h].epoch;
+
+    ensures forall h,j :: h in gls'.ls.servers && 0 <= j < |gls'.history|-1 && gls'.history[j] == h ==> j+1 <= gls'.ls.servers[h].epoch;
+
     //3. If there is a transfer message sent to a node with higher epoch, this epoch equals to length of history// 1 & 2 & 4 implies 3
-    requires forall n, t :: n in gls.ls.servers && t in gls.ls.environment.sentPackets && t.msg.Transfer? && t.src in gls.ls.servers
-                    && t.dst == n && t.msg.transfer_epoch > gls.ls.servers[n].epoch
-                        ==> t.msg.transfer_epoch == |gls.history|;
-    ensures forall n, t :: n in gls'.ls.servers && t in gls'.ls.environment.sentPackets && t.msg.Transfer? && t.src in gls'.ls.servers
-                    && t.dst == n && t.msg.transfer_epoch > gls'.ls.servers[n].epoch
-                        ==> t.msg.transfer_epoch == |gls'.history|;
+    // requires forall n, t :: n in gls.ls.servers && t in gls.ls.environment.sentPackets && t.msg.Transfer? && t.src in gls.ls.servers
+    //                 && t.dst == n && t.msg.transfer_epoch > gls.ls.servers[n].epoch
+    //                     ==> t.msg.transfer_epoch == |gls.history|;
+    // ensures forall n, t :: n in gls'.ls.servers && t in gls'.ls.environment.sentPackets && t.msg.Transfer? && t.src in gls'.ls.servers
+    //                 && t.dst == n && t.msg.transfer_epoch > gls'.ls.servers[n].epoch
+    //                     ==> t.msg.transfer_epoch == |gls'.history|;
 
     //4. If there is a holder, its epoch is equal to length of history : 2 and 3 implies 4
     requires forall n :: n in gls.ls.servers && gls.ls.servers[n].held ==> gls.ls.servers[n].epoch == |gls.history|;
@@ -105,14 +109,16 @@ module Protocol_Refines_Service {
             invariant forall n :: n in db[i-1].ls.servers ==> |config| > db[i-1].ls.servers[n].my_index >= 0;
             invariant forall n :: n in db[i-1].ls.servers ==> n == db[i-1].ls.servers[n].config[db[i-1].ls.servers[n].my_index];
 
+            invariant forall h,j :: h in db[i-1].ls.servers && 0 <= j < |db[i-1].history|-1 && db[i-1].history[j] == h ==> j+1 <= db[i-1].ls.servers[h].epoch;
+
             invariant forall i :: 0 <= i < |sb| ==> Service_Correspondence(db[i].ls.environment.sentPackets, sb[i]); //Invariant for safety
             invariant forall p :: p in db[i-1].ls.environment.sentPackets && p.msg.Transfer? && p.src in db[i-1].ls.servers && p.dst in db[i-1].ls.servers
                                 ==> 2 <= p.msg.transfer_epoch <= |db[i-1].history| && db[i-1].history[p.msg.transfer_epoch-1] == p.dst;//Invariant for 1
             invariant forall n :: n in db[i-1].ls.servers && db[i-1].ls.servers[n].held ==> db[i-1].ls.servers[n].epoch == |db[i-1].history|;//Invariant for 4
             invariant forall n :: n in db[i-1].ls.servers && db[i-1].ls.servers[n].held ==> db[i-1].history[|db[i-1].history| - 1] == n;//Invariant for 2
-            invariant forall n, t :: n in db[i-1].ls.servers && t in db[i-1].ls.environment.sentPackets && t.msg.Transfer? && t.src in db[i-1].ls.servers
-                    && t.dst == db[i-1].ls.servers[n].config[db[i-1].ls.servers[n].my_index] && t.msg.transfer_epoch > db[i-1].ls.servers[n].epoch
-                        ==> t.msg.transfer_epoch == |db[i-1].history|;//Invariant for 3
+            // invariant forall n, t :: n in db[i-1].ls.servers && t in db[i-1].ls.environment.sentPackets && t.msg.Transfer? && t.src in db[i-1].ls.servers
+            //         && t.dst == db[i-1].ls.servers[n].config[db[i-1].ls.servers[n].my_index] && t.msg.transfer_epoch > db[i-1].ls.servers[n].epoch
+            //             ==> t.msg.transfer_epoch == |db[i-1].history|;//Invariant for 3
         {
             sb := sb + [AbstractifyGLS_State(db[i])];
             RefineNext(db[i-1], db[i], sb[i-1], sb[i], config);
