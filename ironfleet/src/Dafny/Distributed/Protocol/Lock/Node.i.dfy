@@ -45,13 +45,12 @@ predicate NodeAccept(s:Node, s':Node, ios:seq<LockIo>)
            && s.my_index == s'.my_index//Remzi's change
            && ios[0].r.src in s.config
            && ios[0].r.msg.Transfer? 
-           && ios[0].r.msg.transfer_epoch > s.epoch 
+           && ios[0].r.msg.transfer_epoch > s.epoch
            && ios[0].r.dst == s.config[s.my_index] then //Remzi's change
-                   s'.held
+                  s'.held
                 && |ios| == 2
                 && ios[1].LIoOpSend?
                 && ios[1].s.msg.Locked?
-                && ios[1].s.src == s.config[s.my_index] //Remzi's change
                 && s'.epoch == ios[0].r.msg.transfer_epoch == ios[1].s.msg.locked_epoch
                 && s'.config == s.config
         else 

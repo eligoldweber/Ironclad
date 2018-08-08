@@ -62,11 +62,11 @@ module Protocol_Refines_Service {
     ensures forall p :: p in gls'.ls.environment.sentPackets && p.msg.Transfer? && p.src in gls'.ls.servers && p.dst in gls'.ls.servers
                         ==> 2 <= p.msg.transfer_epoch <= |gls'.history| && gls'.history[p.msg.transfer_epoch-1] == p.dst;
 
-    //2. If a node holds, it is the last element in the history : 3 implies 2
+    //2. If a node holds, it is the last element in the history : 2 & 3 implies 2
     requires forall n :: n in gls.ls.servers && gls.ls.servers[n].held ==> gls.history[|gls.history| - 1] == n;
     ensures forall n :: n in gls'.ls.servers && gls'.ls.servers[n].held ==> gls'.history[|gls'.history| - 1] == n;
 
-    //3. If there is a transfer message sent to a node with higher epoch, this epoch equals to length of history// 2 & 3 implies 3
+    //3. If there is a transfer message sent to a node with higher epoch, this epoch equals to length of history// 1 & 2 & 4 implies 3
     requires forall n, t :: n in gls.ls.servers && t in gls.ls.environment.sentPackets && t.msg.Transfer? && t.src in gls.ls.servers
                     && t.dst == n && t.msg.transfer_epoch > gls.ls.servers[n].epoch
                         ==> t.msg.transfer_epoch == |gls.history|;
@@ -81,13 +81,13 @@ module Protocol_Refines_Service {
     }
 
     lemma RefinementProof(config:Config, db:seq<GLS_State>) returns (sb:seq<ServiceState>)
-    requires |db| > 0;
-    requires GLS_Init(db[0], config);
-    requires forall i {:trigger GLS_Next(db[i-1], db[i])} :: 0 < i < |db| ==> GLS_Next(db[i-1], db[i]);
-    ensures  |db| == |sb|;
-    ensures  Service_Init(sb[0], mapdomain(db[0].ls.servers));
-    ensures  forall i {:trigger Service_Next(sb[i-1], sb[i])} :: 0 < i < |sb| ==> sb[i-1] == sb[i] || Service_Next(sb[i-1], sb[i]);
-    ensures  forall i :: 0 <= i < |db| ==> Service_Correspondence(db[i].ls.environment.sentPackets, sb[i]);
+        requires |db| > 0;
+        requires GLS_Init(db[0], config);
+        requires forall i {:trigger GLS_Next(db[i-1], db[i])} :: 0 < i < |db| ==> GLS_Next(db[i-1], db[i]);
+        ensures  |db| == |sb|;
+        ensures  Service_Init(sb[0], mapdomain(db[0].ls.servers));
+        ensures  forall i {:trigger Service_Next(sb[i-1], sb[i])} :: 0 < i < |sb| ==> sb[i-1] == sb[i] || Service_Next(sb[i-1], sb[i]);
+        ensures  forall i :: 0 <= i < |db| ==> Service_Correspondence(db[i].ls.environment.sentPackets, sb[i]);
     {
         sb:=[AbstractifyGLS_State(db[0])];
 
