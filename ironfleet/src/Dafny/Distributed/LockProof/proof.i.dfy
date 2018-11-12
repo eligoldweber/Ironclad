@@ -2,37 +2,15 @@ include "../Protocol/Lock/RefinementProof/DistributedSystem.i.dfy"
 include "../Protocol/Lock/Node.i.dfy"
 include "../Services/Lock/AbstractService.s.dfy"
 include "p_s_correspondence.s.dfy"
+include "p_s_lemma.i.dfy"
 
 
-module LockProof {
+abstract module LockProof {
 import opened DistributedSystem_i
 import opened Protocol_Node_i
 import opened AbstractServiceLock_s
 import opened P_S_Correspondence_s
-
-lemma sameConfig(config:Config, ls:seq<LS_State>)
-requires |ls| > 0
-requires LS_Init(ls[0], config)
-requires forall i :: 0 <= i < |ls|-1 ==> LS_Next(ls[i], ls[i+1]) || ls[i] == ls[i+1]
-ensures forall i :: 0 <= i < |ls| ==> forall j :: j in ls[i].servers ==> ls[i].servers[j].config == config
-{
-    assert forall j :: j in ls[0].servers ==> ls[0].servers[j].config == config;
-    
-    var k := 1;
-    while (k < |ls|) 
-    invariant 1 <= k <= |ls|
-    invariant forall i :: 0 <= i < k ==> forall j :: j in ls[i].servers ==> ls[i].servers[j].config == config;
-    {
-        assert forall i :: 0 <= i < k ==> forall j :: j in ls[i].servers ==> ls[i].servers[j].config == config;
-        assert 0 <= k-1 < |ls|-1;
-        assert (ls[k-1] == ls[k] || LS_Next(ls[k-1], ls[k]));
-        assert forall j :: j in ls[k].servers ==> ls[k].servers[j].config == ls[k-1].servers[j].config;
-        assert forall i :: 0 <= i <= k ==> forall j :: j in ls[i].servers ==> ls[i].servers[j].config == config;
-        k := k + 1;
-    }
-
-
-}
+import opened P_S_Lemma
 
 lemma LSToGLS(config:Config, ls:seq<LS_State>) returns (gls:seq<GLS_State>)
 requires |ls| > 0
@@ -41,284 +19,160 @@ requires forall i :: 0 <= i < |ls|-1 ==> LS_Next(ls[i], ls[i+1]) || ls[i] == ls[
 ensures |ls| == |gls|
 ensures GLS_Init(gls[0], config)
 ensures forall i :: 0 <= i < |gls|-1 ==> GLS_Next(gls[i], gls[i+1]) || gls[i] == gls[i+1]
-ensures forall i :: 0 <= i < |gls|-1 ==> (gls[i].history == gls[i+1].history || exists new_holder :: new_holder in config && gls[i+1].history == gls[i].history + [new_holder])
-ensures gls[|gls|-1].ls == ls[|ls|-1]
-ensures forall i :: 0 <= i < |ls| ==> gls[i].ls == ls[i]
-ensures forall i :: 0 <= i < |ls|-1 ==> (ls[i] == ls[i+1] ==> gls[i] == gls[i+1])
 ensures forall i :: 0 <= i < |ls| ==> LS_GLS_Correspondence(ls[i].environment.sentPackets, gls[i], config)
+ensures forall i :: 0 <= i < |gls|-1 ==> gls[i].history == gls[i+1].history || exists new_holder :: new_holder in config && gls[i+1].history == gls[i].history + [new_holder]
 {
-    if (|ls| == 1) {
-        gls := [GLS_State(ls[0], [config[0]])];
-        assert gls[|gls|-1].ls == ls[|ls|-1];
-    } else {
-        assert(|ls| > 1);
-        gls := LSToGLS(config, ls[0..|ls|-1]);
-        assert(|gls| == |ls|-1);
-        var history := gls[|gls|-1].history;
-
-        assert forall i :: 0 <= i < |ls|-1 ==> (!LS_Next(ls[i], ls[i+1]) ==> ls[i] == ls[i+1]);
-        var xxx := |ls|-2;
-        assert(0 <= xxx < |ls|-1);
-        assert !LS_Next(ls[xxx], ls[xxx+1]) ==> ls[xxx] == ls[xxx+1];
+    var k := 1;
+    gls := [GLS_State(ls[0], [config[0]])];
+    assert forall j :: j in ls[0].servers && ls[0].servers[j].held ==> ls[0].servers[j].epoch == |gls[0].history| && gls[0].history[|gls[0].history|-1] == j;
 
 
+    assert |gls[0].history| == 1;
+    assert |gls[0].history| == 1 ==> Epoch_History(gls[0]);
+    assert Epoch_History(gls[0]);
+    assert Less_Than_One_Hold(gls[0]);
 
-        if (LS_Next(ls[|ls|-2], ls[|ls|-1])
-         && ls[|ls|-2].environment.nextStep.LEnvStepHostIos? 
-         && ls[|ls|-2].environment.nextStep.actor in ls[|ls|-2].servers)
-        {
-            if (NodeGrant(ls[|ls|-2].servers[ls[|ls|-2].environment.nextStep.actor], ls[|ls|-1].servers[ls[|ls|-2].environment.nextStep.actor], ls[|ls|-2].environment.nextStep.ios)
-             && ls[|ls|-2].servers[ls[|ls|-2].environment.nextStep.actor].held
-             && ls[|ls|-2].servers[ls[|ls|-2].environment.nextStep.actor].epoch < 0xFFFF_FFFF_FFFF_FFFF) 
-            {
-                assert |ls| > 0;
-                assert LS_Init(ls[0], config);
-                assert forall i :: 0 <= i < |ls|-1 ==> LS_Next(ls[i], ls[i+1]) || ls[i] == ls[i+1];
+    while (k < |ls|)
+    invariant 1 <= k <= |ls|
+    invariant |gls| == k
+    invariant GLS_Init(gls[0], config)
+    invariant forall i :: 0 <= i < k-1 ==> GLS_Next(gls[i], gls[i+1]) || gls[i] == gls[i+1]
+    invariant forall i :: 0 <= i < k ==> ls[i] == gls[i].ls
+    invariant forall i :: 0 <= i < k ==> LS_GLS_Correspondence(ls[i].environment.sentPackets, gls[i], config)
+    invariant forall i :: 0 <= i < k ==> Transfer_Epoch_In_History(gls[i], config)
+    invariant forall i :: 0 <= i < k ==> Hold_Epoch(gls[i])
+    invariant forall i :: 0 <= i < k-1 ==> gls[i].history == gls[i+1].history || exists new_holder :: new_holder in config && gls[i+1].history == gls[i].history + [new_holder]
+    invariant forall i :: 0 <= i < k ==> Hold_History(gls[i])
+    invariant forall i :: 0 <= i < k ==> Epoch_History(gls[i])
+    invariant forall i :: 0 <= i < k ==> Less_Than_One_Hold(gls[i])
+    {
 
-                sameConfig(config, ls);
+        var kk := k-1;
+        var s  := ls[kk];
+        var s' := ls[kk+1];
+        var history := gls[kk].history;
+        var packets := s.environment.sentPackets;
+        var packets':= s'.environment.sentPackets;
 
-                assert forall i :: 0 <= i < |ls| ==> forall j :: j in ls[i].servers ==> ls[i].servers[j].config == config;
+        if (LS_Next(s, s')) {
 
-                assert forall j :: j in ls[|ls|-2].servers ==> ls[|ls|-2].servers[j].config == config;
-                assert ls[|ls|-2].servers[ls[|ls|-2].environment.nextStep.actor].config == config;
-                assert ls[|ls|-2].servers[ls[|ls|-2].environment.nextStep.actor].config[(ls[|ls|-2].servers[ls[|ls|-2].environment.nextStep.actor].my_index + 1) % |ls[|ls|-2].servers[ls[|ls|-2].environment.nextStep.actor].config|] in config;
+            if (s.environment.nextStep.LEnvStepHostIos?) {
 
-//                 history := history + [ls[|ls|-2].servers[ls[|ls|-2].environment.nextStep.actor].config[(ls[|ls|-2].servers[ls[|ls|-2].environment.nextStep.actor].my_index + 1) % |ls[|ls|-2].servers[ls[|ls|-2].environment.nextStep.actor].config|]];
-//                 gls := gls + [GLS_State(ls[|ls|-1], history)];
-
-                var s := ls[|ls|-2];
-                var s' := ls[|ls|-1];
                 var id := s.environment.nextStep.actor;
-                var ios := s.environment.nextStep.ios;
-                var packets := s.environment.sentPackets;
-                var packets' := s'.environment.sentPackets;
+                var ios:= s.environment.nextStep.ios;
 
-                history := history + [s.servers[id].config[(s.servers[id].my_index + 1) % |s.servers[id].config|]];
-                gls := gls + [GLS_State(s', history)];
+                if (s.environment.nextStep.actor in s.servers) {
 
-                if (NodeGrant(s.servers[id], s'.servers[id], ios)) {
-                    if (s.servers[id].held && s.servers[id].epoch < 0xFFFF_FFFF_FFFF_FFFF) {
-                        assert |ios| == 1;
-                        assert ios[0].LIoOpSend?;
-                        assert ios[0].s.msg.Transfer?;
-                        assert forall p ::
-                                      p in packets
-                                   && p.src in s.servers
-                                   && p.dst in s.servers
-                                   && p.msg.Locked?
-                                 <==> p in packets'
-                                  && p.src in s'.servers
-                                  && p.dst in s'.servers
-                                  && p.msg.Locked?;
-                    } else {
+                    if (NodeGrant(s.servers[id], s'.servers[id], ios)) {
+
+                        if (s.servers[id].held && s.servers[id].epoch < 0xFFFF_FFFF_FFFF_FFFF) {
+
+                            history := history + [s.servers[id].config[(s.servers[id].my_index + 1) % |s.servers[id].config|]];
+                            gls := gls + [GLS_State(s', history)];
+                            assert GLS_Next(gls[kk], gls[kk+1]);
+                            assert gls[kk+1].ls == s';
+
+                            assert s'.environment.sentPackets == s.environment.sentPackets + (set io | io in ios && io.LIoOpSend? :: io.s);
+                            assert LS_GLS_Correspondence(s'.environment.sentPackets, gls[kk+1], config);
+                            assert ios[0].s.msg.transfer_epoch == |gls[kk+1].history|;
+                            sameServers(config, ls);
+                            sameConfig(config, ls);
+                            History_Len(gls, config);
+                            Transfer_Epoch_In_History_Next(gls[kk], gls[kk+1], config);
+                            assert Transfer_Epoch_In_History(gls[kk+1], config);
+                            assert Hold_Epoch(gls[kk]);
+                            Hold_Epoch_Next(gls[kk], gls[kk+1]);
+                            assert Hold_Epoch(gls[kk+1]);
+                            assert Epoch_History(gls[kk+1]);
+                            assert Less_Than_One_Hold(gls[kk+1]);
+                        } else {
+
+                            gls := gls + [GLS_State(s', history)];
+                            assert GLS_Next(gls[kk], gls[kk+1]);
+                            assert LS_GLS_Correspondence(s'.environment.sentPackets, gls[kk+1], config);
+                        }
+
+
+                        assert Epoch_History(gls[kk+1]);
+                    } else { // NodeAccept(s.servers[id], s'.servers[id], ios)
+
+                        gls := gls + [GLS_State(s', history)];
+                        assert NodeAccept(s.servers[id], s'.servers[id], ios);
+                        assert |ios| >= 1;
+
+                        if (ios[0].LIoOpReceive?) {
+                        
+                            if (   !s.servers[id].held
+                                && ios[0].r.src in s.servers[id].config
+                                && ios[0].r.msg.Transfer?
+                                && ios[0].r.msg.transfer_epoch > s.servers[id].epoch) {
+
+                                    Incremental_Packets(ls, config);
+                                    sameConfig(config, ls);
+                                    Receive_Next(gls[kk], gls[kk+1], config);
+                                } else {
+                                
+                                    assert LS_GLS_Correspondence(s'.environment.sentPackets, gls[kk+1], config);
+                                    assert Transfer_Epoch_In_History(gls[kk+1], config);
+                                }
+                                assert Transfer_Epoch_In_History(gls[kk+1], config);
+                        } else {
+
+                            assert LS_GLS_Correspondence(s'.environment.sentPackets, gls[kk+1], config);
+                        }
+                        assert LS_GLS_Correspondence(s'.environment.sentPackets, gls[kk+1], config);
                     }
+
+                } else { // ???
+
+                    gls := gls + [GLS_State(s', history)];
+                    sameServers(config, ls);
+                    assert LS_GLS_Correspondence(s'.environment.sentPackets, gls[kk+1], config);
+                    assert GLS_Next(gls[kk], gls[kk+1]);
                 }
 
-
-
-
-            } else {
-
-                gls := gls + [GLS_State(ls[|ls|-1], history)];
+            } else { // s.environment.sentPackets == s'.environment.sentPackets
+                gls := gls + [GLS_State(s', history)];
             }
-        } else 
-        {
-            gls := gls + [GLS_State(ls[|ls|-1], history)];
-            if (!LS_Next(ls[|ls|-2], ls[|ls|-1])) {
-                assert(ls[|ls|-2] == ls[|ls|-1]);
-                assert(history == gls[|gls|-2].history);
-                assert(gls[|gls|-2] == GLS_State(ls[|ls|-2], history));
-                assert(gls[|gls|-2] == gls[|gls|-1]);
-            }
-            assert(gls[|gls|-1] == gls[|gls|-2] || GLS_Next(gls[|gls|-2], gls[|gls|-1]));
+            
+        } else { // s == s'
+            
+            gls := gls + [GLS_State(s', history)];
         }
 
-        assert LS_GLS_Correspondence(ls[|ls|-1].environment.sentPackets, gls[|gls|-1], config);
-
+        k := k + 1;
     }
 }
-
-
-predicate LS_GLS_Correspondence(packets:set<LockPacket>, gls:GLS_State, config:Config) {
-    
-    forall p ::
-           p in packets
-        && p.src in config
-        && p.dst in config
-        && p.msg.Locked?
-        ==> var epoch := p.msg.locked_epoch;
-                0 < epoch <= |gls.history|
-            && p.src == gls.history[epoch-1]
-}
-
-
-// lemma LSToGLS_extended(config:Config, ls:seq<LS_State>) returns (gls:seq<GLS_State>)
-// requires |ls| > 0
-// requires LS_Init(ls[0], config)
-// requires forall i :: 0 <= i < |ls|-1 ==> LS_Next(ls[i], ls[i+1]) || ls[i] == ls[i+1]
-// ensures |ls| == |gls|
-// ensures GLS_Init(gls[0], config)
-// ensures forall i :: 0 <= i < |gls|-1 ==> GLS_Next(gls[i], gls[i+1]) || gls[i] == gls[i+1]
-// ensures forall i :: 0 <= i < |gls|-1 ==> (gls[i].history == gls[i+1].history || exists new_holder :: new_holder in config && gls[i+1].history == gls[i].history + [new_holder])
-// ensures gls[|gls|-1].ls == ls[|ls|-1]
-// ensures forall i :: 0 <= i < |ls| ==> gls[i].ls == ls[i]
-// ensures forall i :: 0 <= i < |ls|-1 ==> (ls[i] == ls[i+1] ==> gls[i] == gls[i+1])
-// ensures forall i :: 0 <= i < |ls| ==> LS_GLS_Correspondence(ls[i].environment.sentPackets, gls[i])
-// {
-//     gls := LSToGLS(config, ls);
-//     
-//     assert LS_GLS_Correspondence(ls[0].environment.sentPackets, gls[0]);
-//     var k := 1;
-//     while (k < |ls|)
-//     invariant 1 <= k <= |ls|
-//     invariant forall i :: 0 <= i < k ==> LS_GLS_Correspondence(ls[i].environment.sentPackets, gls[i]);
-//     {
-//         if (ls[k-1] == ls[k]) {
-//             var kk := k-1;
-//             assert gls[kk] == gls[kk+1];
-//             assert LS_GLS_Correspondence(ls[k].environment.sentPackets, gls[k]);
-//         } else {
-//             var packets := ls[k-1].environment.sentPackets;
-//             var packets' := ls[k].environment.sentPackets;
-//             if (ls[k-1].environment.nextStep.LEnvStepHostIos?
-//              && ls[k-1].environment.nextStep.actor in ls[k-1].servers) {
-// 
-//              // must be the case that LS_NextOneServer(ls[k-1], ls[k], ls[k-1].environment.nextStep.actor, ls[k-1].environment.nextStep.ios)
-//                 var s := ls[k-1];
-//                 var s' := ls[k];
-//                 var id := s.environment.nextStep.actor;
-//                 var ios := s.environment.nextStep.ios;
-// 
-//                 assert gls[k-1].ls == s;
-//                 assert gls[k].ls == s';
-//                 assert forall i :: i in s.servers <==> i in s'.servers;
-//                 assert packets' == packets + (set io | io in ios && io.LIoOpSend? :: io.s);
-// 
-//                 // Then I have id in s'.servers
-//                 // I also have s'.servers == s.servers[id := s'servers[id]]
-// 
-//                 // Now it's either NodeGrant(s, s', ios) or NodeAccept(s, s', ios)
-// 
-//                 if (NodeGrant(s.servers[id], s'.servers[id], ios)) {
-//                     if (s.servers[id].held && s.servers[id].epoch < 0xFFFF_FFFF_FFFF_FFFF) {
-//                         assert |ios| == 1;
-//                         assert ios[0].LIoOpSend?;
-//                         assert ios[0].s.msg.Transfer?;
-//                         assert forall p ::
-//                                       p in packets
-//                                    && p.src in s.servers
-//                                    && p.dst in s.servers
-//                                    && p.msg.Locked?
-//                                  <==> p in packets'
-//                                   && p.src in s'.servers
-//                                   && p.dst in s'.servers
-//                                   && p.msg.Locked?;
-//                     } else {
-//                     }
-//                 }
-// 
-//                 assert LS_GLS_Correspondence(ls[k].environment.sentPackets, gls[k]);
-//             } else {
-//                 assert false;
-//                 // Should be something like same valid locked messages in packets and packets'
-//             }
-//         }
-//         assert LS_GLS_Correspondence(ls[k].environment.sentPackets, gls[k]);
-//         k := k + 1;
-//     }
-// }
-
-
-
-lemma GLSToSS(config:Config, gls:seq<GLS_State>) returns (ss:seq<ServiceState>)
-requires |gls| > 0
-requires GLS_Init(gls[0], config)
-requires forall i :: 0 <= i < |gls|-1 ==> GLS_Next(gls[i], gls[i+1]) || gls[i] == gls[i+1]
-requires forall i :: 0 <= i < |gls|-1 ==> (gls[i].history == gls[i+1].history || exists new_holder :: new_holder in config && gls[i+1].history == gls[i].history + [new_holder])
-ensures |ss| == |gls|
-ensures exists serverAddresses :: Service_Init(ss[0], serverAddresses)
-ensures forall i :: 0 <= i < |ss|-1 ==> Service_Next(ss[i], ss[i+1]) || ss[i] == ss[i+1]
-ensures forall i :: 0 <= i < |ss| ==> ss[i].history == gls[i].history
-{
-    var i := 0;
-    ss := [];
-    var serverAddresses := set k | 0 <= k < |config| :: config[k];
-    while i < |gls| 
-    invariant |ss|==i
-    invariant 0 <= i <= |gls|
-    invariant forall j :: 0 <= j < i ==> ss[j].hosts == serverAddresses 
-    invariant i > 0 ==> Service_Init(ss[0], serverAddresses)
-    invariant forall j :: 0 <= j < i ==> ss[j].history == gls[j].history
-    invariant forall j :: 0 <= j < i-1 ==> ss[j].hosts == ss[j+1].hosts
-    invariant forall j :: 0 <= j < i-1 ==> ss[j].history == ss[j+1].history || exists new_holder :: new_holder in config && ss[j+1].history == ss[j].history + [new_holder]
-    invariant forall j :: 0 <= j < i-1 ==> ss[j] == ss[j+1] || Service_Next(ss[j], ss[j+1])
-    {
-        ss := ss + [ServiceState'(serverAddresses, gls[i].history)];
-        assert(ss[i].history == gls[i].history);
-        i := i + 1;
-    }
-}
-
-
-// lemma sameHosts(ss:seq<ServiceState>) 
-// requires |ss| > 0
-// requires exists serverAddresses :: Service_Init(ss[0], serverAddresses)
-// requires forall i :: 0 <= i < |ss|-1 ==> Service_Next(ss[i], ss[i+1]) || ss[i] == ss[i+1]
-// ensures forall i :: 0 <= i < |ss| ==> ss[i].hosts == ss[0].hosts
-// {
-//     assert ss[0].hosts == ss[0].hosts;
-//     var k := 1;
-//     while (k < |ss|)
-//     invariant 1 <= k <= |ss|
-//     invariant forall i :: 0 <= i < k ==> ss[i].hosts == ss[0].hosts
-//     {
-//         assert forall i :: 0 <= i < |ss|-1 ==> Service_Next(ss[i], ss[i+1]) || ss[i] == ss[i+1];
-//         var kk := k-1;
-//         assert Service_Next(ss[kk], ss[kk+1]) || ss[kk] == ss[kk+1];
-//         assert ss[k] == ss[k-1] || Service_Next(ss[k-1], ss[k]);
-//         assert ss[k].hosts == ss[k-1].hosts;
-//         assert forall i :: 0 <= i <= k ==> ss[i].hosts == ss[0].hosts;
-//         k := k + 1;
-//     }
-// }
-
-
 
 lemma RefinementProof(config:Config, ls:seq<LS_State>) returns (ss:seq<ServiceState>)
 requires |ls| > 0
 requires LS_Init(ls[0], config)
 requires forall i :: 0 <= i < |ls|-1 ==> LS_Next(ls[i], ls[i+1]) || ls[i] == ls[i+1]
-ensures |ss| == |ls|
-ensures exists serverAddresses :: Service_Init(ss[0], serverAddresses)
+ensures |ls| == |ss|
+ensures Service_Init(ss[0], ss[0].hosts)
 ensures forall i :: 0 <= i < |ss|-1 ==> Service_Next(ss[i], ss[i+1]) || ss[i] == ss[i+1]
-ensures forall i :: 0 <= i < |ls| ==> Protocol_Service_Correspondence(ls[i].environment.sentPackets, ss[i])
+ensures forall i :: 0 <= i < |ss| ==> Protocol_Service_Correspondence(ls[i].environment.sentPackets, ss[i])
+ensures forall i :: 0 <= i < |ss| ==> ss[i].hosts == mapdomain(ls[0].servers)
 {
     var gls := LSToGLS(config, ls);
-    ss := GLSToSS(config, gls);
-
-    assert Protocol_Service_Correspondence(ls[0].environment.sentPackets, ss[0]);
-
-    var    k := 0;
-    while (k < |ls|-1)
-    invariant 0 <= k <= |ls|-1
-    invariant forall i :: 0 <= i <= k ==> Protocol_Service_Correspondence(ls[i].environment.sentPackets, ss[i])
+    var serverAddresses := set k | 0 <= k < |config| :: config[k];
+    ss := [];
+    var k := 0;
+    while (k < |gls|)
+    invariant |ss| == k
+    invariant 0 <= k <= |gls|
+    invariant forall i :: 0 <= i < k ==> ss[i].hosts == serverAddresses
+    invariant k > 0 ==> Service_Init(ss[0], serverAddresses)
+    invariant forall i :: 0 <= i < k ==> ss[i].history == gls[i].history
+    invariant forall i :: 0 <= i < k-1 ==> ss[i].hosts == ss[i+1].hosts
+    invariant forall i :: 0 <= i < k-1 ==> ss[i].history == ss[i+1].history || exists new_holder :: new_holder in config && ss[i+1].history == ss[i].history + [new_holder]
+    invariant forall i :: 0 <= i < k-1 ==> ss[i] == ss[i+1] || Service_Next(ss[i], ss[i+1])
+    invariant forall i :: 0 <= i < k ==> ss[i].hosts == mapdomain(ls[0].servers)
     {
-        assert forall i :: 0 <= i <= k ==> Protocol_Service_Correspondence(ls[i].environment.sentPackets, ss[i]);
-        if (ls[k] == ls[k+1]) {
-            // assert gls[k+1] == gls[k];
-            assert ss[k+1] == ss[k];
-            assert ls[k+1] == ls[k] ==> Protocol_Service_Correspondence(ls[k+1].environment.sentPackets, ss[k+1]);
-        } else {
-            assert LS_Next(ls[k], ls[k+1]);
-
-            assert Protocol_Service_Correspondence(ls[k+1].environment.sentPackets, ss[k+1]);
-        }
+        ss := ss + [ServiceState'(serverAddresses, gls[k].history)];
+        assert(ss[k].history == gls[k].history);
         k := k + 1;
     }
 }
-
-
-
-
 
 }

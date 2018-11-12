@@ -3,7 +3,7 @@ include "Host.s.dfy"
 include "../Collections/Maps2.s.dfy"
 
 abstract module DistributedSystem_s {
-    import opened Host_s
+    import opened H_s : Host_s
     //import opened AbstractService_s
     import opened Collections__Maps2_s
     import opened Native__Io_s

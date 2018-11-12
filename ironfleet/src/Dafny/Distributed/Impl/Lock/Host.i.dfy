@@ -67,7 +67,7 @@ module Host_i refines Host_s {
         if !ok { return; }
         id := config[my_index];
         
-        var node_impl := new NodeImpl;
+        var node_impl := new NodeImpl();
         ok := node_impl.InitNode(config, my_index, env);
         
         if !ok { return; }
