@@ -4,7 +4,7 @@ include "../../../Common/Collections/Seqs.i.dfy"
 include "../../../Common/Framework/DistributedSystem.s.dfy"
 include "../../../Impl/Lock/Host.i.dfy"
 
-abstract module DistributedSystem_i refines DistributedSystem_s {
+module DistributedSystem_i refines DistributedSystem_s {
     import opened Protocol_Node_i
     import opened Common__SeqIsUnique_i
     import opened Collections__Seqs_i
