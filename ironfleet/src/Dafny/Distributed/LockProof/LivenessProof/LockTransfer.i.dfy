@@ -16,6 +16,7 @@ lemma LockedImpliesLockedNextPositionLemma(b:Behavior<LS_State>, i:int, epoch:in
 requires ValidBehavior(b, config)
 requires LivenessAssumptions(b, asp, config)
 requires 0 <= i < |config| - 1
+requires epoch < 0xFFFF_FFFF_FFFF_FFFF
 ensures sat(0, always(LockedImpliesLockedAtNextPositionTemporal(b, i, epoch, config)))
 {
     LockEventuallyTransferToNextNode(b, i, epoch, config, asp);
@@ -26,6 +27,7 @@ lemma LockedImpliesLockedForAllAfterLemma(b:Behavior<LS_State>, i:int, epoch:int
 requires ValidBehavior(b, config)
 requires LivenessAssumptions(b, asp, config)
 requires 0 <= i < |config| - 1
+requires epoch < 0xFFFF_FFFF_FFFF_FFFF + i - |config| + 2
 ensures sat(0, always(LockedImpliesLockedForAllAfterTemporal(b, i, epoch, config)))
 {
     forall t |
@@ -33,15 +35,13 @@ ensures sat(0, always(LockedImpliesLockedForAllAfterTemporal(b, i, epoch, config
     ensures sat(t, LockedImpliesLockedForAllAfterTemporal(b, i, epoch, config))
     {
         reveal_or();
-        if (sat(t, LockedIthPositionWithEpochTemporal(b, i, epoch, config))
-         || sat(t, LockedIthPositionWithHigherEpochTemporal(b, i, epoch, config)))
+        if (sat(t, LockedIthPositionWithEpochTemporal(b, i, epoch, config)))
         {
-            assert LockedIthPositionWithEpoch(b[t], i, epoch, config)
-                || LockedIthPositionWithHigherEpoch(b[t], i, epoch, config);
+            assert LockedIthPositionWithEpoch(b[t], i, epoch, config);
 
             forall j |
                    i < j < |config|
-            ensures sat(t, eventual(LockedIthPositionWithHigherEpochTemporal(b, j, epoch, config)))
+            ensures sat(t, eventual(LockedIthPositionWithEpochTemporal(b, j, epoch + j - i, config)))
             {
                 reveal_always();
                 reveal_imply();
@@ -50,15 +50,13 @@ ensures sat(0, always(LockedImpliesLockedForAllAfterTemporal(b, i, epoch, config
                 var step := t;
                 while (k < j) 
                 invariant i <= k <= j
-                invariant sat(step, or(LockedIthPositionWithEpochTemporal(b, k, epoch, config),
-                                    LockedIthPositionWithHigherEpochTemporal(b, k, epoch, config)))
-                invariant i < k ==> sat(step, LockedIthPositionWithHigherEpochTemporal(b, k, epoch, config))
+                invariant sat(step, LockedIthPositionWithEpochTemporal(b, k, epoch + k - i, config))
                 invariant step >= t;
                 {
-                    LockedImpliesLockedNextPositionLemma(b, k, epoch, config, asp);
-                    assert sat(step, LockedImpliesLockedAtNextPositionTemporal(b, k, epoch, config));
-                    assert sat(step, eventual(LockedIthPositionWithHigherEpochTemporal(b, k+1, epoch, config)));
-                    step := eventualStep(step, LockedIthPositionWithHigherEpochTemporal(b, k+1, epoch, config));
+                    LockedImpliesLockedNextPositionLemma(b, k, epoch + k - i, config, asp);
+                    assert sat(step, LockedImpliesLockedAtNextPositionTemporal(b, k, epoch + k - i, config));
+                    assert sat(step, eventual(LockedIthPositionWithEpochTemporal(b, k+1, epoch + k - i + 1, config)));
+                    step := eventualStep(step, LockedIthPositionWithEpochTemporal(b, k+1, epoch + k - i + 1, config));
                     k := k + 1;
                 }
             }
@@ -74,6 +72,7 @@ ensures sat(0, always(LockedImpliesLockedForAllAfterTemporal(b, i, epoch, config
 lemma LockedLastImpliesLockedFirstLemma(b:Behavior<LS_State>, epoch:int, config:Config, asp:AssumptionParameters)
 requires ValidBehavior(b, config)
 requires LivenessAssumptions(b, asp, config)
+requires epoch < 0xFFFF_FFFF_FFFF_FFFF
 ensures sat(0, always(LockedLastImpliesLockedFirstTemporal(b, epoch, config)))
 {
     LockEventuallyTransferToNextNode(b, |config|-1, epoch, config, asp);
@@ -85,7 +84,7 @@ requires imaptotal(b)
 requires |config| > 0
 requires 0 <= i < |config| - 1
 requires sat(t, EventuallyLockedForAllAfterTemporal(b, i, epoch, config))
-ensures sat(t, eventual(LockedIthPositionWithHigherEpochTemporal(b, j, epoch, config)))
+ensures sat(t, eventual(LockedIthPositionWithEpochTemporal(b, j, epoch + j - i, config)))
 {
 }
 

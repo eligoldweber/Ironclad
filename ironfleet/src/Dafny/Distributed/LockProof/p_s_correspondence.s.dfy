@@ -2,7 +2,7 @@ include "../Protocol/Lock/RefinementProof/DistributedSystem.i.dfy"
 include "../Protocol/Lock/Node.i.dfy"
 include "../Services/Lock/AbstractService.s.dfy"
 
-abstract module P_S_Correspondence_s {
+module P_S_Correspondence_s {
 import opened DistributedSystem_i
 import opened Protocol_Node_i
 import opened AbstractServiceLock_s

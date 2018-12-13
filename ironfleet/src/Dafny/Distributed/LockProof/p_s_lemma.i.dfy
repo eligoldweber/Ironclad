@@ -4,7 +4,7 @@ include "../Services/Lock/AbstractService.s.dfy"
 include "p_s_correspondence.s.dfy"
 
 
-abstract module P_S_Lemma {
+module P_S_Lemma {
 import opened DistributedSystem_i
 import opened Protocol_Node_i
 import opened AbstractServiceLock_s

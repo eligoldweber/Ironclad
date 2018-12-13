@@ -1,11 +1,13 @@
 include "Assumptions.i.dfy"
 include "LockTransfer.i.dfy"
+include "Defs.i.dfy"
 include "../../Common/Logic/Temporal/Rules.i.dfy"
 
 module Lock__LivenessProof__LivenessProof_i {
 
 import opened Lock__LivenessProof__Assumptions_i
 import opened Lock__LivenessProof__LockTransfer_i
+import opened Lock__LivenessProof__Defs_i
 import opened Temporal__Rules_i
 
 predicate LockedWithEpoch(ls:LS_State, x:EndPoint, epoch:int) {
@@ -47,10 +49,10 @@ requires imaptotal(b)
     eventual(LockedWithHigherEpochTemporal(b, x, epoch))
 }
 
-function EventuallyLockedAgainTemporal(b:Behavior<LS_State>, x:EndPoint, epoch:int) : temporal
+function EventuallyLockedAgainTemporal(b:Behavior<LS_State>, x:EndPoint, epoch:int, config:Config) : temporal
 requires imaptotal(b)
 {
-    imply(LockedWithEpochTemporal(b, x, epoch), EventuallyLockedWithHigherEpochTemporal(b, x, epoch))
+    imply(and(EpochUpperBound(epoch, 0xFFFF_FFFF_FFFF_FFFF-|config|), LockedWithEpochTemporal(b, x, epoch)), EventuallyLockedWithHigherEpochTemporal(b, x, epoch))
 }
 
 predicate LivenessProperty(b:Behavior<LS_State>, config:Config)
@@ -59,7 +61,7 @@ requires imaptotal(b)
     forall epoch, x :: 
            epoch >= 0
         && x in config
-       ==> sat(0, always(EventuallyLockedAgainTemporal(b, x, epoch)))
+       ==> sat(0, always(EventuallyLockedAgainTemporal(b, x, epoch, config)))
 }
 
 
@@ -91,13 +93,13 @@ ensures LivenessProperty(b, config)
 {
     reveal_always();
     forall epoch, x |
-           epoch >= 0
+           0 <= epoch < 0xFFFF_FFFF_FFFF_FFFF - |config|
         && x in config
-    ensures sat(0, always(EventuallyLockedAgainTemporal(b, x, epoch)))
+    ensures sat(0, always(EventuallyLockedAgainTemporal(b, x, epoch, config)))
     {
         forall j |
                0 <= j
-        ensures sat(j, EventuallyLockedAgainTemporal(b, x, epoch))
+        ensures sat(j, EventuallyLockedAgainTemporal(b, x, epoch, config))
         {
             if (sat(j, LockedWithEpochTemporal(b, x, epoch))) {
                 var t := FindPosition(x, config);
@@ -118,33 +120,41 @@ ensures LivenessProperty(b, config)
                         |config|-1, 
                         epoch, 
                         config);
-                    assert sat(j, eventual(LockedIthPositionWithHigherEpochTemporal(b, |config|-1, epoch, config)));
+                    assert sat(j, eventual(LockedIthPositionWithEpochTemporal(b, |config|-1, epoch + |config|-1 - t, config)));
 
-                    assert sat(j, eventual(LockedIthPositionWithHigherEpochTemporal(b, |config|-1, epoch, config)));
-                    LockedLastImpliesLockedFirstLemma(b, epoch, config, asp);
+                    LockedLastImpliesLockedFirstLemma(b, epoch + |config| - 1 - t, config, asp);
 
-                    assert sat(j, eventual(LockedIthPositionWithHigherEpochTemporal(b, 0, epoch, config)));
+                    assert sat(j, eventual(LockedIthPositionWithEpochTemporal(b, 0, epoch + |config| - t, config)));
                 } else {
                     assert t == |config| - 1;
                     LockedLastImpliesLockedFirstLemma(b, epoch, config, asp);
-                    assert sat(j, eventual(LockedIthPositionWithHigherEpochTemporal(b, 0, epoch, config)));
+                    assert sat(j, eventual(LockedIthPositionWithEpochTemporal(b, 0, epoch + 1, config)));
                 }
 
                 if (t == 0) {
-                    assert sat(j, eventual(LockedIthPositionWithHigherEpochTemporal(b, t, epoch, config)));
+                    assert sat(j, eventual(LockedIthPositionWithEpochTemporal(b, t, epoch + |config|, config)));
                 } else {
 
                     reveal_imply();
                     reveal_eventual();
-                    LockedImpliesLockedForAllAfterLemma(b, 0, epoch, config, asp);
                     
-                    assert sat(j, EventuallyLockedForAllAfterTemporal(b, 0, epoch, config));
+                    
+                    assert sat(j, eventual(LockedIthPositionWithEpochTemporal(b, 0, epoch + |config| - t, config)));
 
-                    LockedForAllAfterImpliesLockedForIthPositionLemma(b, j, 0, t, epoch, config);
+                    var k := 0;
+                    while (k < t)
+                    invariant 0 <= k <= t
+                    invariant sat(j, eventual(LockedIthPositionWithEpochTemporal(b, k, epoch + |config| - t + k, config)))
+                    {
+                        LockedImpliesLockedNextPositionLemma(b, k, epoch + |config| - t + k, config, asp);
+                        assert sat(j, eventual(LockedIthPositionWithEpochTemporal(b, k+1, epoch + |config| - t + k + 1, config)));
+                        k := k + 1;
+                    }
 
-                    assert sat(j, eventual(LockedIthPositionWithHigherEpochTemporal(b, t, epoch, config)));
+                    assert sat(j, eventual(LockedIthPositionWithEpochTemporal(b, t, epoch + |config|, config)));
                 }
 
+                LockedWithEpochToHigherEpoch(b, j, t, epoch + |config|, epoch, config);
 
                 LockPositionToLockEndPoint(b, x, t, epoch, config, j);
 

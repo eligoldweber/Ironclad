@@ -1,11 +1,12 @@
 include "../Protocol/Lock/RefinementProof/DistributedSystem.i.dfy"
 include "../Protocol/Lock/Node.i.dfy"
 include "../Services/Lock/AbstractService.s.dfy"
+include "../Protocol/Lock/Node.i.dfy"
 include "p_s_correspondence.s.dfy"
 include "p_s_lemma.i.dfy"
 
 
-abstract module LockProof {
+module LockProof {
 import opened DistributedSystem_i
 import opened Protocol_Node_i
 import opened AbstractServiceLock_s
@@ -21,6 +22,12 @@ ensures GLS_Init(gls[0], config)
 ensures forall i :: 0 <= i < |gls|-1 ==> GLS_Next(gls[i], gls[i+1]) || gls[i] == gls[i+1]
 ensures forall i :: 0 <= i < |ls| ==> LS_GLS_Correspondence(ls[i].environment.sentPackets, gls[i], config)
 ensures forall i :: 0 <= i < |gls|-1 ==> gls[i].history == gls[i+1].history || exists new_holder :: new_holder in config && gls[i+1].history == gls[i].history + [new_holder]
+ensures forall i :: 0 <= i < |gls| ==> Less_Than_One_Hold(gls[i])
+ensures forall i :: 0 <= i < |gls| ==> (forall x :: x in gls[i].history ==> x in config)
+ensures forall i :: 0 <= i < |gls| ==> gls[i].ls == ls[i]
+ensures forall i :: 0 <= i < |gls| ==> Hold_Epoch(gls[i])
+ensures forall i :: 0 <= i < |gls| ==> |gls[i].history| > 0
+ensures forall i :: 0 <= i < |gls| ==> (forall x :: x in gls[i].ls.servers ==> gls[i].ls.servers[x].epoch <= |gls[i].history|)
 {
     var k := 1;
     gls := [GLS_State(ls[0], [config[0]])];
@@ -31,6 +38,8 @@ ensures forall i :: 0 <= i < |gls|-1 ==> gls[i].history == gls[i+1].history || e
     assert |gls[0].history| == 1 ==> Epoch_History(gls[0]);
     assert Epoch_History(gls[0]);
     assert Less_Than_One_Hold(gls[0]);
+
+    assert forall x :: x in gls[0].ls.servers ==> gls[0].ls.servers[x].epoch <= 1;
 
     while (k < |ls|)
     invariant 1 <= k <= |ls|
@@ -45,6 +54,7 @@ ensures forall i :: 0 <= i < |gls|-1 ==> gls[i].history == gls[i+1].history || e
     invariant forall i :: 0 <= i < k ==> Hold_History(gls[i])
     invariant forall i :: 0 <= i < k ==> Epoch_History(gls[i])
     invariant forall i :: 0 <= i < k ==> Less_Than_One_Hold(gls[i])
+    invariant forall i :: 0 <= i < |gls| ==> (forall x :: x in gls[i].history ==> x in config)
     {
 
         var kk := k-1;
