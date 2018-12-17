@@ -177,6 +177,52 @@ ensures LargestEpoch(b[t], p.msg.transfer_epoch)
     assert glb[t].ls.servers[src].epoch == |glb[t].history|;
     assert p.msg.transfer_epoch == |glb[t].history| + 1;
 
+    var k := 0;
+
+    assert forall s :: s in b[0].servers ==> b[0].servers[s].epoch <= |glb[0].history|;
+    while (k < t)
+    invariant 0 <= k <= t
+    invariant forall s :: s in b[k].servers ==> b[k].servers[s].epoch <= |glb[k].history|
+    {
+        var kk := k + 1;
+        forall s |
+               s in b[k+1].servers
+        ensures b[kk].servers[s].epoch <= |glb[kk].history|
+        {
+            assert s in b[k].servers;
+            if (b[k].environment.nextStep.LEnvStepHostIos?
+             && b[k].environment.nextStep.actor in b[k].servers) {
+            
+                if (s == b[k].environment.nextStep.actor) {
+                    if (NodeAccept(b[k].servers[s], b[kk].servers[s], b[k].environment.nextStep.ios)) {
+                        var ios := b[k].environment.nextStep.ios;
+                        assert |ios| > 0;
+                        if (ios[0].LIoOpTimeoutReceive?) {
+                            assert b[kk].servers[s].epoch == b[k].servers[s].epoch;
+                            assert |glb[kk].history| >= |glb[k].history|;
+                        } else {
+                            assert ios[0].LIoOpReceive?;
+                            if (!b[k].servers[s].held
+                             && ios[0].r.src in b[k].servers[s].config
+                             && ios[0].r.msg.Transfer?
+                             && ios[0].r.msg.transfer_epoch > b[k].servers[s].epoch) {
+                                assert b[kk].servers[s].held;
+                                assert b[kk].servers[s].epoch == |glb[k].history|;
+                            } else {
+                                assert b[kk].servers[s].epoch == b[k].servers[s].epoch;
+                                assert |glb[kk].history| >= |glb[k].history|;
+                            }
+                        }
+                    }
+                }
+            } else {
+                assert b[k+1].servers[s].epoch == b[k].servers[s].epoch;
+                assert |glb[k+1].history| >= |glb[k].history|;
+            }
+        }
+        k := k + 1;
+    }
+
     forall s |
            s in config
     ensures s in b[t].servers
@@ -206,6 +252,7 @@ requires forall t' :: grantT <= t' < t ==> !sat(t', PacketReceivedTemporal(b, p)
 requires config[i] in b[grantT].servers
 requires !b[grantT+1].servers[config[i]].held
 requires p.msg.transfer_epoch > b[grantT+1].servers[config[i]].epoch
+requires p in b[grantT+1].environment.sentPackets
 ensures sat(t, next(LockedIthPositionWithEpochTemporal(b, i, p.msg.transfer_epoch, config)))
 {
     var ios := b[t].environment.nextStep.ios;
@@ -224,6 +271,8 @@ ensures sat(t, next(LockedIthPositionWithEpochTemporal(b, i, p.msg.transfer_epoc
     invariant !b[k].servers[node].held
     invariant p.msg.transfer_epoch > b[k].servers[node].epoch
     {
+        SentPacketsMonotoneMeta(b, grantT+1, config, p);
+        assert p in b[k].environment.sentPackets;
         ValidBehaviorServers(b, config);
         if (b[k].environment.nextStep.LEnvStepHostIos?
          && b[k].environment.nextStep.actor == node
@@ -245,6 +294,8 @@ ensures sat(t, next(LockedIthPositionWithEpochTemporal(b, i, p.msg.transfer_epoc
                     }
                     assert pp != p;
                     assert pp.dst == node;
+                    assert p.src in config;
+                    assert pp.src in config;
                     if (pp.msg.transfer_epoch > b[k].servers[node].epoch) {
                         OnlyOneUsefulTransfer(b, k, p, pp, node, config);
                         assert pp == p;
@@ -352,15 +403,6 @@ ensures sat(0, always(LockTransferToNextNode(b, i, epoch, config)))
         if (t <= acceptStep + 1) {
             assert sat(t, eventual(LockedIthPositionWithEpochTemporal(b, NextNode(i, config), e+1, config)));
         } else {
-            // var pp :|
-            //     exists epoch' ::
-            //            epoch' > epoch
-            //         && pp in b[acceptStep+1].environment.sentPackets
-            //         && pp.src == config[NextNode(i, config)]
-            //         && pp.msg.Locked?
-            //         && pp.msg.locked_epoch == epoch';
-            // assert pp in b[t+1].environment.sentPackets;
-
             var pp :|
                 pp in b[acceptStep+1].environment.sentPackets
              && pp.src == config[NextNode(i, config)]

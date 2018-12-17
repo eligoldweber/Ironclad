@@ -27,7 +27,8 @@ ensures forall i :: 0 <= i < |gls| ==> (forall x :: x in gls[i].history ==> x in
 ensures forall i :: 0 <= i < |gls| ==> gls[i].ls == ls[i]
 ensures forall i :: 0 <= i < |gls| ==> Hold_Epoch(gls[i])
 ensures forall i :: 0 <= i < |gls| ==> |gls[i].history| > 0
-ensures forall i :: 0 <= i < |gls| ==> (forall x :: x in gls[i].ls.servers ==> gls[i].ls.servers[x].epoch <= |gls[i].history|)
+ensures forall i :: 0 <= i < |gls| ==> Epoch_History(gls[i])
+ensures forall i :: 0 <= i < |gls| ==> Transfer_Epoch_In_History(gls[i], config)
 {
     var k := 1;
     gls := [GLS_State(ls[0], [config[0]])];
@@ -38,8 +39,6 @@ ensures forall i :: 0 <= i < |gls| ==> (forall x :: x in gls[i].ls.servers ==> g
     assert |gls[0].history| == 1 ==> Epoch_History(gls[0]);
     assert Epoch_History(gls[0]);
     assert Less_Than_One_Hold(gls[0]);
-
-    assert forall x :: x in gls[0].ls.servers ==> gls[0].ls.servers[x].epoch <= 1;
 
     while (k < |ls|)
     invariant 1 <= k <= |ls|
@@ -54,7 +53,7 @@ ensures forall i :: 0 <= i < |gls| ==> (forall x :: x in gls[i].ls.servers ==> g
     invariant forall i :: 0 <= i < k ==> Hold_History(gls[i])
     invariant forall i :: 0 <= i < k ==> Epoch_History(gls[i])
     invariant forall i :: 0 <= i < k ==> Less_Than_One_Hold(gls[i])
-    invariant forall i :: 0 <= i < |gls| ==> (forall x :: x in gls[i].history ==> x in config)
+    invariant forall i :: 0 <= i < k ==> (forall x :: x in gls[i].history ==> x in config)
     {
 
         var kk := k-1;
