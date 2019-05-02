@@ -1,4 +1,4 @@
-include "../../Common/Native/Io.s.dfy"
+include "../../Common/Native/"
 //include "Host.s.dfy"
 include "DistributedSystem.s.dfy"
 include "AbstractService.s.dfy"
