@@ -90,7 +90,7 @@ namespace NuBuild
             this.workingDirectory = workingDirectory;
             this.stdout = new StringBuilder();
             this.stderr = new StringBuilder();
-            Console.WriteLine("trying to create a job? .....");
+            Console.WriteLine("(ProcessInvoker 93) trying to create a job? .....");
             using (Job job = new Job())
             {
                 using (Process proc = new Process())

@@ -207,7 +207,7 @@ namespace NuBuild
                 BasicLimitInformation = 2,
                 ExtendedLimitInformation = 9
             }
-            [DllImport("kernel32.dll", CharSet = CharSet.Unicode)]
+            [DllImport("kernel32.dll", CharSet = CharSet.Unicode, EntryPoint = "CreateJobObject")]
             public static extern SafeFileHandle CreateJobObject(IntPtr jobAttributes, string name);
 
             [DllImport("kernel32.dll")]

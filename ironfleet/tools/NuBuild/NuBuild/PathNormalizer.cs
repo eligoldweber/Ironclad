@@ -85,7 +85,7 @@ namespace NuBuild
                         // a path with a different capitalization. However, if we memorize our
                         // results, we should end up canonicalizing to the first capitalization
                         // we see.
-                        Console.WriteLine("afadsfasdfasdfasdf " + normalizedParent + " :: " +childName );
+                        Console.WriteLine("normalized + child (pathNorm 88) " + normalizedParent + " :: " +childName );
                         normalizedPath = Path.Combine(normalizedParent, childName);
 
                         // Unfortunately, we can't tell whether we should add a path separator here!
@@ -107,7 +107,7 @@ namespace NuBuild
                             normalizedPath += Path.DirectorySeparatorChar;
                         }
                     }
-                    Console.WriteLine("Afterrrr " + normalizedParent + " :: " +childName );
+                    // Console.WriteLine("After  (pathNorm 110)" + normalizedParent + " :: " +childName );
 
                     rc = normalizedPath;
                 }
