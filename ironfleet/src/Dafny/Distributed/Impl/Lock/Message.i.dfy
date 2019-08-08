@@ -1,8 +1,5 @@
 include "../../Protocol/Lock/Types.i.dfy"
 
-include "../../Common/Native/"
-
-
 module Message_i {
 import opened Types_i
 

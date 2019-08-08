@@ -1,4 +1,4 @@
-include "../../Common/Native/"
+include "../../Common/Native/Io.s.dfy"
 //include "Host.s.dfy"
 include "DistributedSystem.s.dfy"
 include "AbstractService.s.dfy"
@@ -21,7 +21,7 @@ abstract module Main_s {
         var ok, host_state, config, servers, clients, id := HostInitImpl(env);
         assert ok ==> HostInit(host_state, config, id);
 
-        while (ok) 
+        while (ok)
             invariant ok ==> HostStateInvariants(host_state, env);
             invariant ok ==> env != null && env.Valid() && env.ok.ok();
             decreases *;
@@ -41,8 +41,8 @@ abstract module Main_s {
 
                 // These obligations enable us to apply reduction
                 assert env.udp.history() == old_udp_history + recvs + clocks + sends;
-                assert forall e :: (e in recvs ==> e.LIoOpReceive?) 
-                                && (e in clocks ==> e.LIoOpReadClock? || e.LIoOpTimeoutReceive?) 
+                assert forall e :: (e in recvs ==> e.LIoOpReceive?)
+                                && (e in clocks ==> e.LIoOpReadClock? || e.LIoOpTimeoutReceive?)
                                 && (e in sends ==> e.LIoOpSend?);
                 assert |clocks| <= 1;
             }
