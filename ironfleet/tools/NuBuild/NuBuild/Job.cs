@@ -38,7 +38,10 @@ namespace NuBuild
         /// </summary>
         public Job()
         {
+            Console.WriteLine("JOB gotta get that $");
             this.jobObjectHandle = NativeMethods.CreateJobObject(IntPtr.Zero, null);
+            // this.jobObjectHandle = new SafeFileHandle(IntPtr.Zero, true);
+            Console.WriteLine("JOB gotta get that -- GOT THat BReaD");
             if (this.jobObjectHandle.IsInvalid)
             {
                 // Note that the parameterless Win32Exception constructor calls Marshal.GetLastWin32Error internally.
@@ -204,7 +207,6 @@ namespace NuBuild
                 BasicLimitInformation = 2,
                 ExtendedLimitInformation = 9
             }
-
             [DllImport("kernel32.dll", CharSet = CharSet.Unicode)]
             public static extern SafeFileHandle CreateJobObject(IntPtr jobAttributes, string name);
 

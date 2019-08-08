@@ -325,7 +325,7 @@ namespace NuBuild
 
             // Remap dafny filenames so resulting objects have correctly-parsed extns.
             filename = Util.dafnySpecMungeName(filename);
-
+            Console.WriteLine("MashedPathName - BuildObj-- 329 "   + root);
             return Path.Combine(root, this.getDirRelativeToSrcOrObj(), filename + extension);
         }
 
@@ -339,7 +339,7 @@ namespace NuBuild
         private string getDirRelativeToSrcOrObj()
         {
             string dirname = this.getDirPath();
-            int slash = dirname.IndexOf('\\');
+            int slash = dirname.IndexOf('/');
             Util.Assert(slash >= 0);
             return dirname.Substring(slash + 1);
         }

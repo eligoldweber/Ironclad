@@ -45,7 +45,7 @@ namespace NuBuild
             throw new UserError("Invalid options");
         }
 
-        string ironRoot;
+        string ironRoot = "/Users/eligoldweber/Desktop/Michigan/Research/Ironclad/ironfleet";
         int jobParallelism = 1;
         List<IVerb> verbs = new List<IVerb>();
         string html_output = null;
@@ -70,6 +70,7 @@ namespace NuBuild
 
         SourcePath conditionSourcePath(string path)
         {
+            Console.WriteLine("herererer :" + path);
             return new SourcePath(path);
         }
 
@@ -89,6 +90,10 @@ namespace NuBuild
 
         void parseArgs(string[] args)
         {
+            foreach (string H in args){
+                 System.Console.Write("{0} \n ", H);
+            }
+             // Console.WriteLine(args);
             this.args = args;
             argi = 0;
             while (argi < args.Count())
@@ -172,6 +177,7 @@ namespace NuBuild
                     if (verb.Equals("DafnyVerifyTree"))
                     {
                         verbs.Add(new VerificationResultSummaryVerb(new DafnyVerifyTreeVerb(conditionSourcePath(target))));
+                        Console.WriteLine("AFTER ADD VERB -- DafnyVerifyTre");
                     }
                     else if (verb.Equals("BatchDafny"))
                     {
@@ -205,6 +211,7 @@ namespace NuBuild
                     }
                     else if (verb.Equals("IronfleetApp"))
                     {
+                        // Console.WriteLine("ahhahah -- here is where i am");
                         verbs.Add(new IronfleetAppVerb(conditionSourcePath(target), this.verificationRequest, this.releaseBuild));
                     }
                     else if (verb.Equals("DafnyCompileOne"))
@@ -243,12 +250,12 @@ namespace NuBuild
             {
                 try
                 {
-                    BuildEngine.theEngine.CloudCache = new ItemCacheCloud();
-
-                    return new ItemCacheMultiplexer(
-                        new ItemCacheLocal(localCacheDirectory),
-                        BuildEngine.theEngine.CloudCache,
-                        this.backgroundWorker);
+                    // BuildEngine.theEngine.CloudCache = new ItemCacheCloud();
+                    //
+                    // return new ItemCacheMultiplexer(
+                    //     new ItemCacheLocal(localCacheDirectory),
+                    //     BuildEngine.theEngine.CloudCache,
+                    //     this.backgroundWorker);
                 }
                 catch (Microsoft.WindowsAzure.Storage.StorageException)
                 {
@@ -303,7 +310,7 @@ namespace NuBuild
         private IEnumerable<string> fetchConfigArgs()
         {
             string config_path =
-                Path.Combine(getDefaultIronRoot(), NUBUILD_CONFIG);
+                Path.Combine("/Users/eligoldweber/Desktop/Michigan/Research/Ironclad/ironfleet", NUBUILD_CONFIG);
             if (!File.Exists(config_path))
             {
                 return new string[] { };
@@ -344,7 +351,7 @@ namespace NuBuild
                 }
 
                 BuildEngine.theEngine.CloudReportQueueName = Path.GetRandomFileName().Substring(0, 8);
-                BuildEngine.theEngine.CloudExecutionQueue = new CloudExecutionQueue(BuildEngine.theEngine.CloudReportQueueName);
+                // BuildEngine.theEngine.CloudExecutionQueue = new CloudExecutionQueue(BuildEngine.theEngine.CloudReportQueueName);
                 Logger.WriteLine("Using cloud report queue name: " + BuildEngine.theEngine.CloudReportQueueName);
             }
 

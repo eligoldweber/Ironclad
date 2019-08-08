@@ -20,9 +20,9 @@ namespace NuBuild
         private string ironRoot;
         private Hasher hasher;
         private Repository repository;
-        private CloudExecutionQueue cloudExecutionQueue;
+        // private CloudExecutionQueue cloudExecutionQueue;
         private string cloudReportQueueName;
-        private ItemCacheCloud cloudItemCache;
+        // private ItemCacheCloud cloudItemCache;
         private IItemCache itemCache;
         private string localCacheLocation = "nucache";
 
@@ -43,11 +43,11 @@ namespace NuBuild
             set { this.repository = value; }
         }
 
-        internal CloudExecutionQueue CloudExecutionQueue
-        {
-            get { return this.cloudExecutionQueue; }
-            set { this.cloudExecutionQueue = value; }
-        }
+        // internal CloudExecutionQueue CloudExecutionQueue
+        // {
+        //     get { return this.cloudExecutionQueue; }
+        //     set { this.cloudExecutionQueue = value; }
+        // }
 
         internal string CloudReportQueueName
         {
@@ -55,11 +55,11 @@ namespace NuBuild
             set { this.cloudReportQueueName = value; }
         }
 
-        internal ItemCacheCloud CloudCache
-        {
-            get { return this.cloudItemCache; }
-            set { this.cloudItemCache = value; }
-        }
+        // internal ItemCacheCloud CloudCache
+        // {
+        //     get { return this.cloudItemCache; }
+        //     set { this.cloudItemCache = value; }
+        // }
 
         internal IItemCache ItemCache
         {
@@ -120,8 +120,10 @@ namespace NuBuild
         // Normalize the case of an ironRoot-relative path to the case present in the filesystem.
         internal string normalizeIronPath(string ironRelPath)
         {
+            Console.WriteLine("IRONN ROOT = " + this.ironRoot + " :: :: " + ironRelPath);
             string abspath = this.pathNormalizer.normalizeAbsolutePath(Path.GetFullPath(Path.Combine(this.ironRoot, ironRelPath)));
             Util.Assert(abspath.StartsWith(this.ironRoot));
+            Console.WriteLine("IRONN RESULT = " +  abspath.Substring(this.ironRoot.Length));
             return abspath.Substring(this.ironRoot.Length);
         }
 
@@ -137,7 +139,7 @@ namespace NuBuild
 
         internal string getVirtualRoot()
         {
-            return this.getObjRoot() + "\\virtual";  // Should never exist in filesystem!
+            return this.getObjRoot() + "/virtual";  // Should never exist in filesystem!
         }
 
         internal string getToolsRoot()

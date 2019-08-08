@@ -413,6 +413,7 @@ namespace NuBuild
                 Say(string.Format("launching {0}", this.verb));
                 Logger.WriteLine(string.Format("{0} launched", this.verb));
                 this.worker.RunAsync();
+                Logger.WriteLine("After async -- VerbRunner l416");
                 this.runner.completeTask(this.verb, this.worker);
                 Say(string.Format("completed {0}", this.verb));
             }

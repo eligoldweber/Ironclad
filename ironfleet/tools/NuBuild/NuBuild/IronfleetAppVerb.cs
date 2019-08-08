@@ -43,7 +43,8 @@ namespace NuBuild
 
             this.abstractId = new AbstractId(GetType().Name, Version, input.ToString() + verificationRequest.ToString());
             this.input = input;
-            this.buildVerb = new VSSolutionVerb(new SourcePath(@"src\IronfleetTestDriver\IronfleetTestDriver.sln"), input, releaseBuild);
+            // this.buildVerb = new VSSolutionVerb(new SourcePath(@"src\IronfleetTestDriver\IronfleetTestDriver.sln"), input, releaseBuild);
+            this.buildVerb = new VSSolutionVerb(new SourcePath(@"src/IronfleetTestDriver/IronfleetTestDriver.sln"), input, releaseBuild);
 
             if (verificationRequest.verifyMode == VerificationRequest.VerifyMode.NoVerify)
             {
@@ -142,7 +143,7 @@ namespace NuBuild
         }
 
         public Disposition Complete(WorkingDirectory workingDirectory, double cpuTimeSeconds, string stdout, string stderr, Disposition disposition)
-        {           
+        {
             return disposition;
         }
 

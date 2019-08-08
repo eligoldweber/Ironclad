@@ -30,15 +30,21 @@ namespace NuBuild
 
         public DafnyCompileOneVerb(SourcePath input)
         {
+            Console.WriteLine("sdflasnf;kljasdfnalksdfnasdf");
             if (input == null)
             {
                 throw new ArgumentNullException("input");
             }
-
+            Console.WriteLine("sdflasnf;kljasdfnalksdfnasdf----2");
             this.abstractId = new AbstractId(GetType().Name, Version, input.ToString());
+            Console.WriteLine("sdflasnf;kljasdfnalksdfnasdf----3");
             this.input = input;
             this.output = input.makeOutputObject(CSharpExt);
+            Console.WriteLine("sdflasnf;kljasdfnalksdfnasdf----4  : " + input);
+
             this.transitiveDepsVerb = new DafnyTransitiveDepsVerb(input);
+            Console.WriteLine("sdflasnf;kljasdfnalksdfnasdf----5");
+
             this.verbs = new IVerb[] { this.transitiveDepsVerb };
         }
 
@@ -63,7 +69,7 @@ namespace NuBuild
 
                 this.dependencies = dependencies;
             }
-
+            Console.WriteLine("COMPILE 1 - ln 66");
             Trace.Assert(this.dependencies != null);
             ddisp = DependencyDisposition.Complete;
             return this.dependencies;
@@ -135,13 +141,13 @@ namespace NuBuild
                 var namespaces = new Dictionary<string, string>();
                 using (TextReader reader = new StreamReader(inputPath))
                 {
-                    string line;                    
+                    string line;
                     System.Text.RegularExpressions.Regex pattern = new System.Text.RegularExpressions.Regex("namespace @_(\\d+)_([\\w_]+) {", System.Text.RegularExpressions.RegexOptions.Compiled);
 
                     while ((line = reader.ReadLine()) != null)
                     {
                         var result = pattern.Match(line);
-                        if (result.Success) 
+                        if (result.Success)
                         {
                             string old_name = "_" + result.Groups[1] + "_" + result.Groups[2];
                             string new_name = "_" + result.Groups[2];
@@ -166,7 +172,7 @@ namespace NuBuild
                         line = line.Replace("@_default_Main", "@IronfleetMain");
 
                         // Find a more efficient approach?
-                        foreach (KeyValuePair<string, string> entry in namespaces) 
+                        foreach (KeyValuePair<string, string> entry in namespaces)
                         {
                             line = line.Replace(entry.Key, entry.Value);
                         }
