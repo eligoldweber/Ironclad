@@ -179,6 +179,11 @@ namespace NuBuild
                         verbs.Add(new VerificationResultSummaryVerb(new DafnyVerifyTreeVerb(conditionSourcePath(target))));
                         Console.WriteLine("AFTER ADD VERB -- DafnyVerifyTre");
                     }
+                    else if (verb.Equals("DafnyVerifyONE"))
+                    {
+                        verbs.Add(new DafnyVerifyOneVerb(conditionSourcePath(target)));
+                        Console.WriteLine("AFTER ADD VERB -- ONE ONE");
+                    }
                     else if (verb.Equals("BatchDafny"))
                     {
                         if (!target.EndsWith(".batch"))
