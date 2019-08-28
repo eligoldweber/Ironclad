@@ -15,7 +15,7 @@ namespace NuBuild
             // TODO this should eventually be a BuildObject from *building* the executable.
             if (dafnyExecutable == null)
             {
-                dafnyExecutable = new SourcePath("tools/Dafny/Dafny.exe", SourcePath.SourceType.Tools);
+                dafnyExecutable = new SourcePath("tools/Dafny/dafny", SourcePath.SourceType.Tools);
             }
 
             return dafnyExecutable;
@@ -47,7 +47,7 @@ namespace NuBuild
             exeDepends.Add(new SourcePath("tools/Dafny/VCGeneration.dll", SourcePath.SourceType.Tools));
             exeDepends.Add(new SourcePath("tools/Dafny/vcomp100.dll", SourcePath.SourceType.Tools));  // Needed by z3.
             exeDepends.Add(new SourcePath("tools/Dafny/DafnyRuntime.cs", SourcePath.SourceType.Tools));  // Needed for compilation
-            exeDepends.Add(new SourcePath("tools/Dafny/z3.exe", SourcePath.SourceType.Tools));
+            exeDepends.Add(new SourcePath("tools/Dafny/z3/bin/z3", SourcePath.SourceType.Tools));
 
             return exeDepends;
         }

@@ -39,11 +39,9 @@ namespace NuBuild
         public Job()
         {
             // handle = NativeMethods.CreateJobObject(IntPtr.Zero, null);
-            Console.WriteLine("JOB gotta get that $");
             IntPtr ptr = IntPtr.Zero;
             // this.jobObjectHandle = NativeMethods.CreateJobObject(IntPtr.Zero, null);
             this.jobObjectHandle = new SafeFileHandle(ptr,true);
-            Console.WriteLine("JOB gotta get that -- GOT THat BReaD");
             if (this.jobObjectHandle.IsInvalid)
             {
                 // Note that the parameterless Win32Exception constructor calls Marshal.GetLastWin32Error internally.
@@ -96,7 +94,6 @@ namespace NuBuild
         /// <returns>True if successful, false otherwise.</returns>
         public bool AddProcess(Process process)
         {
-            Console.WriteLine("here -- aahjhh :: " + process.StartInfo);
             process.Start();
             return true;
             // return NativeMethods.AssignProcessToJobObject(this.jobObjectHandle, process.Handle);

@@ -30,20 +30,15 @@ namespace NuBuild
 
         public DafnyCompileOneVerb(SourcePath input)
         {
-            Console.WriteLine("sdflasnf;kljasdfnalksdfnasdf");
             if (input == null)
             {
                 throw new ArgumentNullException("input");
             }
-            Console.WriteLine("sdflasnf;kljasdfnalksdfnasdf----2");
             this.abstractId = new AbstractId(GetType().Name, Version, input.ToString());
-            Console.WriteLine("sdflasnf;kljasdfnalksdfnasdf----3");
             this.input = input;
             this.output = input.makeOutputObject(CSharpExt);
-            Console.WriteLine("sdflasnf;kljasdfnalksdfnasdf----4  : " + input);
 
             this.transitiveDepsVerb = new DafnyTransitiveDepsVerb(input);
-            Console.WriteLine("sdflasnf;kljasdfnalksdfnasdf----5");
 
             this.verbs = new IVerb[] { this.transitiveDepsVerb };
         }
@@ -69,7 +64,6 @@ namespace NuBuild
 
                 this.dependencies = dependencies;
             }
-            Console.WriteLine("COMPILE 1 - ln 66");
             Trace.Assert(this.dependencies != null);
             ddisp = DependencyDisposition.Complete;
             return this.dependencies;

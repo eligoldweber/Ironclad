@@ -45,7 +45,7 @@ namespace NuBuild
             throw new UserError("Invalid options");
         }
 
-        string ironRoot = "/Users/eligoldweber/Desktop/Michigan/Research/Ironclad/ironfleet";
+        string ironRoot = Directory.GetCurrentDirectory();
         int jobParallelism = 1;
         List<IVerb> verbs = new List<IVerb>();
         string html_output = null;
@@ -70,7 +70,6 @@ namespace NuBuild
 
         SourcePath conditionSourcePath(string path)
         {
-            Console.WriteLine("herererer :" + path);
             return new SourcePath(path);
         }
 
@@ -93,7 +92,6 @@ namespace NuBuild
             foreach (string H in args){
                  System.Console.Write("{0} \n ", H);
             }
-             // Console.WriteLine(args);
             this.args = args;
             argi = 0;
             while (argi < args.Count())
@@ -177,12 +175,6 @@ namespace NuBuild
                     if (verb.Equals("DafnyVerifyTree"))
                     {
                         verbs.Add(new VerificationResultSummaryVerb(new DafnyVerifyTreeVerb(conditionSourcePath(target))));
-                        Console.WriteLine("AFTER ADD VERB -- DafnyVerifyTre");
-                    }
-                    else if (verb.Equals("DafnyVerifyONE"))
-                    {
-                        verbs.Add(new DafnyVerifyOneVerb(conditionSourcePath(target)));
-                        Console.WriteLine("AFTER ADD VERB -- ONE ONE");
                     }
                     else if (verb.Equals("BatchDafny"))
                     {
@@ -216,7 +208,6 @@ namespace NuBuild
                     }
                     else if (verb.Equals("IronfleetApp"))
                     {
-                        // Console.WriteLine("ahhahah -- here is where i am");
                         verbs.Add(new IronfleetAppVerb(conditionSourcePath(target), this.verificationRequest, this.releaseBuild));
                     }
                     else if (verb.Equals("DafnyCompileOne"))
@@ -315,7 +306,7 @@ namespace NuBuild
         private IEnumerable<string> fetchConfigArgs()
         {
             string config_path =
-                Path.Combine("/Users/eligoldweber/Desktop/Michigan/Research/Ironclad/ironfleet", NUBUILD_CONFIG);
+                Path.Combine(ironRoot, NUBUILD_CONFIG);
             if (!File.Exists(config_path))
             {
                 return new string[] { };

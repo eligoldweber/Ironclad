@@ -22,7 +22,6 @@ namespace NuBuild
         protected TransitiveDepsVerb(BuildObject obj)
         {
             this.obj = obj;
-            Console.WriteLine("VIRTual ??? ");
             this._depsObj = obj.makeVirtualObject(BeatExtensions.whichPart(obj).ExtnStr() + TDEP_EXTN);
         }
 

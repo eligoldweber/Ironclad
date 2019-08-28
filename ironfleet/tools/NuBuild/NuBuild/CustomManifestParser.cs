@@ -34,8 +34,7 @@ namespace NuBuild
         private void parseCustomManifest(SourcePath basePath)
         {
             // SourcePath manifest = basePath.getNewSourcePath("/IronfleetTestDriver/nubuild-manifest.txt");
-            // fix hardCODE! 
-            SourcePath manifest = basePath.getNewSourcePath("/Users/eligoldweber/Desktop/Michigan/Research/Ironclad/ironfleet/src/IronfleetTestDriver/IronfleetTestDriver/nubuild-manifest.txt");
+            SourcePath manifest = basePath.getNewSourcePath("../../../src/IronfleetTestDriver/IronfleetTestDriver/nubuild-manifest.txt");
             this.dependencies.Add(manifest);
 
             using (StreamReader stream = new StreamReader(IronRootDirectory.PathTo(manifest)))

@@ -1,4 +1,4 @@
 #!/bin/bash
 
 awk 'sub("$", "\r")' $1 > $2
-echo $1
+echo "Created " $2 "With CRLF line ending encoding"

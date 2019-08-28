@@ -32,7 +32,6 @@ namespace NuBuild
         // Normalize the case of an absolute path to the case present in the filesystem.
         public string normalizeAbsolutePath(string absPath)
         {
-            System.Console.Write("HERE : " +  absPath + "\n");
             string dotdotfreepath = this.cleanDotDots(absPath);
             // if (!Path.IsPathRooted(dotdotfreepath))
             // {
@@ -44,7 +43,6 @@ namespace NuBuild
 
         private static string normalizePath_nocache(string requestPath, bool presumedDirectory)
         {
-            Console.WriteLine("Test: " + requestPath);
             try
             {
                 string rc;
@@ -61,9 +59,6 @@ namespace NuBuild
 
                     // Recurse to handle parent prefix:
                     string normalizedParent = normalizePath_nocache(parentPath, true);
-                    // Console.WriteLine("normalized + child : " + normalizedParent + " :: " + childName); !!!!!!!
-                    // Console.WriteLine("its sgsdfgsdfgsdgflate : " + requestPath);
-
 
                     DirectoryInfo parentDirectoryInfo = new DirectoryInfo(normalizedParent);
                     FileSystemInfo[] childrenFileSystemInfos = null;
@@ -85,8 +80,15 @@ namespace NuBuild
                         // a path with a different capitalization. However, if we memorize our
                         // results, we should end up canonicalizing to the first capitalization
                         // we see.
-                        Console.WriteLine("normalized + child (pathNorm 88) " + normalizedParent + " :: " +childName );
+                        // Console.WriteLine("normalized + child (pathNorm 88) " + normalizedParent + " :: " +childName );
+
                         normalizedPath = Path.Combine(normalizedParent, childName);
+                        if (!Directory.Exists(normalizedPath) && !File.Exists(normalizedPath) && !childName.Contains("."))
+                        {
+                            // Console.WriteLine("normalized + child (pathNorm 90) " + normalizedPath );
+
+                            Directory.CreateDirectory(normalizedPath);
+                        }
 
                         // Unfortunately, we can't tell whether we should add a path separator here!
                         if (presumedDirectory)
@@ -113,12 +115,12 @@ namespace NuBuild
                 }
 
                 ////Logger.WriteLine(string.Format("{0}\n  => {1}", requestPath, rc));
+
                 return rc;
             }
             catch (Exception ex)
             {
                 Trace.TraceError(ex.Message);
-                // Console.WriteLine("PATH ERROR: " + requestPath);
                 throw new ArgumentException("invalid path " + requestPath + " :: " + ex.Message + "\n");
             }
         }

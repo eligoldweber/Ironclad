@@ -3,16 +3,16 @@ load(
   "dotnet_binary", "mono_register_sdk","dotnet_library", "dotnet_import_library"
 )
 dotnet_import_library(
-  name = "test",
+  name = "AzureStorage",
   src = "Microsoft.WindowsAzure.Storage.dll"
 )
 dotnet_import_library(
-  name = "test2",
+  name = "AzureCommon",
   src = "Microsoft.WindowsAzure.Common.dll"
 )
 
 dotnet_binary(
-  name = "eliBuild",
+  name = "NuBuild",
   srcs = [
       "AbstractId.cs",
       "AnnotationScanner.cs",
@@ -141,7 +141,7 @@ dotnet_binary(
         "@io_bazel_rules_dotnet//dotnet/stdlib:System.dll",
         "@io_bazel_rules_dotnet//dotnet/stdlib:System.Xml.dll",
         "@io_bazel_rules_dotnet//dotnet/stdlib:System.Net.Http.dll",
-        ":test",
-        ":test2"],
+        ":AzureStorage",
+        ":AzureCommon"],
   visibility = ["//visibility:public"],
 )

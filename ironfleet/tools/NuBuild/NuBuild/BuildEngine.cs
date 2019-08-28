@@ -120,10 +120,10 @@ namespace NuBuild
         // Normalize the case of an ironRoot-relative path to the case present in the filesystem.
         internal string normalizeIronPath(string ironRelPath)
         {
-            Console.WriteLine("IRONN ROOT = " + this.ironRoot + " :: :: " + ironRelPath);
+            // Console.WriteLine("IRON ROOT = " + this.ironRoot + " :: :: " + ironRelPath);
             string abspath = this.pathNormalizer.normalizeAbsolutePath(Path.GetFullPath(Path.Combine(this.ironRoot, ironRelPath)));
             Util.Assert(abspath.StartsWith(this.ironRoot));
-            Console.WriteLine("IRONN RESULT = " +  abspath.Substring(this.ironRoot.Length));
+            // Console.WriteLine("IRON RESULT = " +  abspath.Substring(this.ironRoot.Length));
             return abspath.Substring(this.ironRoot.Length);
         }
 
